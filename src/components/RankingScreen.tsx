@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createLeague as createLeagueAction, endLeague, joinLeague, leaveLeague as leaveLeagueAction, updateLeague } from "@/lib/leagues";
 import { leagueMarks, leagues as seedLeagues, standingsFromHistory, type League, type LeagueVisibility, type RankRow } from "@/data/home";
@@ -51,15 +51,6 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
   useEffect(() => {
     setBoard(initialLeagues.map((league) => ({ ...league, rows: league.rows.map((row) => ({ ...row })) })));
   }, [initialLeagues]);
-
-  useEffect(() => {
-    if (!dialog) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setDialog(null);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [dialog]);
 
   function openCreate() {
     setDialog(vip ? { kind: "create" } : { kind: "vip" });
@@ -227,8 +218,8 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
                   </span>
                   {mine ? <span className="text-sm font-bold tabular-nums">{mine.place}º</span> : null}
                 </button>
-                {expanded ? (
-                  <>
+                <div className={`fold ${expanded ? "fold-open" : ""}`}>
+                  <div className="fold-inner" inert={expanded ? undefined : true}>
                     <ol>
                       {table.map((row) => (
                         <RankItem key={`${league.name}-${row.place}-${row.initials}`} row={row} host={Boolean(league.hosted && row.you)} />
@@ -241,8 +232,8 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
                         <button type="button" onClick={() => leaveLeague(league.name)} className="rounded-md border border-[#5c1818] px-2 py-0.5 text-[11px] font-semibold text-[#c4292e]">Sair</button>
                       )}
                     </div>
-                  </>
-                ) : null}
+                  </div>
+                </div>
               </article>
             );
           })}
@@ -279,17 +270,42 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
   );
 }
 
+const DialogClose = createContext<(() => void) | null>(null);
+
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const [on, setOn] = useState(false);
+  const done = useRef(false);
+  const request = useRef(onClose);
+  request.current = onClose;
+  function close() {
+    if (done.current) return;
+    done.current = true;
+    setOn(false);
+    window.setTimeout(() => request.current(), 160);
+  }
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setOn(true));
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") close();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/70 px-4" onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="liga-dialog-titulo" className="max-h-[min(680px,calc(100vh-32px))] w-full max-w-md overflow-y-auto rounded-[18px] border border-line bg-card p-4 shadow-[0_10px_28px_rgba(0,0,0,0.28)]" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-between gap-3">
-          <h2 id="liga-dialog-titulo" className="text-base font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm font-semibold text-muted">Fechar</button>
+    <DialogClose.Provider value={close}>
+      <div className={`presence fixed inset-0 z-40 grid place-items-center bg-black/70 px-4 ${on ? "presence-on" : ""}`} onMouseDown={close}>
+        <div role="dialog" aria-modal="true" aria-labelledby="liga-dialog-titulo" className="max-h-[min(680px,calc(100vh-32px))] w-full max-w-md overflow-y-auto rounded-[18px] border border-line bg-card p-4 shadow-[0_10px_28px_rgba(0,0,0,0.28)]" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="liga-dialog-titulo" className="text-base font-semibold">{title}</h2>
+            <button type="button" onClick={close} className="rounded-lg px-2 py-1 text-sm font-semibold text-muted">Fechar</button>
+          </div>
+          {children}
         </div>
-        {children}
       </div>
-    </div>
+    </DialogClose.Provider>
   );
 }
 
@@ -303,6 +319,11 @@ function LeagueForm({ names, initial, onSubmit, onClose, onEnd }: { names: strin
   const [playerCap, setPlayerCap] = useState(String(initial?.playerCap ?? 10));
   const [visibility, setVisibility] = useState<LeagueVisibility>(initial?.visibility ?? "privada");
   const [error, setError] = useState("");
+  const dialogClose = useContext(DialogClose);
+  function dismiss() {
+    if (dialogClose) dialogClose();
+    else onClose();
+  }
 
   useEffect(() => {
     nameRef.current?.focus();
@@ -399,9 +420,9 @@ function LeagueForm({ names, initial, onSubmit, onClose, onEnd }: { names: strin
       <input id="liga-premio" value={prize} maxLength={80} placeholder="Ex.: jantar de quem ficar por último" onChange={(event) => setPrize(event.target.value)} className="mt-1 w-full rounded-lg bg-card-2 px-2 py-2 text-base text-ink outline-none placeholder:text-muted" />
       {error ? <p className="mt-2 text-xs text-accent" role="status">{error}</p> : null}
       <div className="mt-4 flex items-center justify-between gap-2">
-        {onEnd ? <button type="button" onClick={() => { onEnd(); onClose(); }} className="text-sm font-semibold text-[#c4292e]">Encerrar liga</button> : <span />}
+        {onEnd ? <button type="button" onClick={() => { onEnd(); dismiss(); }} className="text-sm font-semibold text-[#c4292e]">Encerrar liga</button> : <span />}
         <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm font-semibold text-muted">Cancelar</button>
+          <button type="button" onClick={dismiss} className="rounded-lg px-3 py-2 text-sm font-semibold text-muted">Cancelar</button>
           <button type="submit" className="rounded-lg bg-accent px-3 py-2 text-sm font-bold text-accent-ink">{initial ? "Salvar" : "Criar"}</button>
         </div>
       </div>

@@ -17,6 +17,7 @@ const groupOrder = ["Ao vivo", "Hoje", "Sábado", "Domingo"];
 export function GamesScreen({ games }: { games: OddGame[] }) {
   const { picks, choose } = useBet();
   const [filter, setFilter] = useState<ChampFilter>("todos");
+  const [moved, setMoved] = useState(false);
 
   const groups = useMemo(() => {
     const visible = filter === "todos" ? games : games.filter((game) => game.champ === filter);
@@ -57,8 +58,8 @@ export function GamesScreen({ games }: { games: OddGame[] }) {
               type="button"
               role="tab"
               aria-selected={on}
-              onClick={() => setFilter(champ.id)}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${on ? "bg-accent text-accent-ink" : "bg-card-2 text-ink"}`}
+              onClick={() => { setMoved(true); setFilter(champ.id); }}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors duration-150 ${on ? "bg-accent text-accent-ink" : "bg-card-2 text-ink"}`}
             >
               {chipLabel[champ.id]}
             </button>
@@ -66,6 +67,7 @@ export function GamesScreen({ games }: { games: OddGame[] }) {
         })}
       </div>
 
+      <div key={filter} className={moved ? "soft-in flex flex-col gap-4" : "flex flex-col gap-4"}>
       {groups.length === 0 && games.length > 0 ? <p className="text-sm text-muted">Nenhum jogo neste campeonato.</p> : null}
 
       {groups.map((group) => (
@@ -78,6 +80,7 @@ export function GamesScreen({ games }: { games: OddGame[] }) {
           </div>
         </section>
       ))}
+      </div>
     </div>
   );
 }

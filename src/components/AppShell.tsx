@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense, createContext, useContext, useEffect, useState } from "react";
+import { Suspense, createContext, useContext, useEffect, useRef, useState } from "react";
 import type { Account } from "@/lib/account";
 import { saveSlip } from "@/lib/slip-store";
 import { BetProvider, useBet } from "./BetContext";
 import { Coin } from "./Icons";
+import { ScreenFade } from "./ScreenFade";
 
 const AccountContext = createContext<Account | null>(null);
 
@@ -34,7 +35,7 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
           </div>
         </header>
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 pt-[calc(56px+env(safe-area-inset-top)+16px)] pb-4 min-[880px]:px-6 min-[880px]:pb-5">
-          {children}
+          <ScreenFade>{children}</ScreenFade>
         </div>
         <Slip />
         <Suspense fallback={<nav className="fixed inset-x-0 bottom-0 z-10 h-16 border-t border-line bg-nav" aria-label="Menu principal" />}>
@@ -65,17 +66,28 @@ function Balance({ initials, unread }: { initials: string | null; unread: number
 function Slip() {
   const { slip } = useBet();
   const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(false);
+  const hide = useRef<number | null>(null);
+  function openTicket() {
+    if (hide.current) window.clearTimeout(hide.current);
+    setShown(true);
+    requestAnimationFrame(() => setOpen(true));
+  }
+  function closeTicket() {
+    setOpen(false);
+    hide.current = window.setTimeout(() => setShown(false), 160);
+  }
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("bilhete") === "1" && !slip.idle) setOpen(true);
+    if (new URLSearchParams(window.location.search).get("bilhete") === "1" && !slip.idle) openTicket();
   }, [slip.idle]);
   return (
     <>
-      <button type="button" disabled={slip.idle} onClick={() => setOpen(true)} className={`fixed inset-x-0 z-[9] flex h-[52px] items-center gap-2.5 border-t border-line px-4 text-left ${slip.multi ? "bg-multi" : "bg-card"}`} style={{ bottom: "calc(64px + env(safe-area-inset-bottom))" }} aria-label="Aposta">
+      <button type="button" disabled={slip.idle} onClick={openTicket} className={`fixed inset-x-0 z-[9] flex h-[52px] items-center gap-2.5 border-t border-line px-4 text-left ${slip.multi ? "bg-multi" : "bg-card"}`} style={{ bottom: "calc(64px + env(safe-area-inset-bottom))" }} aria-label="Aposta">
         <p className={`m-0 min-w-0 flex-1 truncate font-semibold ${slip.idle ? "text-[13px] font-medium text-muted" : "text-[15px] text-ink"}`}>{slip.text}</p>
         {slip.multi ? <span className="rounded-full bg-multi-pill px-2 py-1 text-[11px] font-bold tracking-wide text-multi-ink uppercase">Múltipla</span> : null}
         <span className={`min-w-16 rounded-[10px] px-2.5 py-1.5 text-center text-[15px] font-bold tabular-nums ${slip.idle ? "bg-card-2 text-muted" : "bg-accent text-accent-ink"}`}>{slip.odd}</span>
       </button>
-      {open ? <Ticket onClose={() => setOpen(false)} /> : null}
+      {shown ? <Ticket on={open} onClose={closeTicket} /> : null}
     </>
   );
 }
@@ -91,7 +103,7 @@ const placeError = {
   repetida: "Essa aposta já foi enviada.",
 } as const;
 
-function Ticket({ onClose }: { onClose: () => void }) {
+function Ticket({ on, onClose }: { on: boolean; onClose: () => void }) {
   const { picks, order, slip, balance, signedIn, place, remove } = useBet();
   const router = useRouter();
   const [stake, setStake] = useState("");
@@ -103,22 +115,25 @@ function Ticket({ onClose }: { onClose: () => void }) {
   const ready = signedIn && quoted != null && Math.round(amount * 100) <= Math.round(balance * 100);
   const legs = order.map((id) => picks[id]).filter(Boolean);
 
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") closeRef.current();
     }
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, []);
 
   useEffect(() => {
-    if (order.length === 0 && !receipt) onClose();
-  }, [order.length, onClose, receipt]);
+    if (order.length === 0 && !receipt) closeRef.current();
+  }, [order.length, receipt]);
 
   async function send() {
     if (!ready || sending) return;
@@ -139,7 +154,7 @@ function Ticket({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-bg" role="dialog" aria-modal="true" aria-label="Bilhete">
+    <div className={`presence fixed inset-0 z-40 flex flex-col bg-bg ${on ? "presence-on" : ""}`} role="dialog" aria-modal="true" aria-label="Bilhete">
       <div className="grid grid-cols-3 items-center px-4 pt-[calc(env(safe-area-inset-top)+12px)]">
         <button type="button" onClick={onClose} className="text-left text-sm font-semibold text-muted">Fechar</button>
         <h2 className="text-center text-base font-semibold">Bilhete</h2>

@@ -27,3 +27,69 @@ body {
   padding-bottom: calc(64px + 52px + env(safe-area-inset-bottom));
 }
 
+@keyframes soft-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.presence {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.presence-on {
+  opacity: 1;
+}
+
+.fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 180ms ease;
+}
+
+.fold-open {
+  grid-template-rows: 1fr;
+}
+
+.soft-in {
+  animation: soft-in 160ms ease;
+}
+
+.chevron {
+  display: inline-block;
+  transition: rotate 180ms ease;
+}
+
+.fold-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+nav a {
+  transition: color 160ms ease;
+}
+
+@media (min-width: 880px) {
+  .fold-desk {
+    grid-template-rows: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presence,
+  .fold,
+  .chevron,
+  nav a {
+    transition: none;
+  }
+
+  .soft-in {
+    animation: none;
+  }
+
+  .presence {
+    opacity: 1;
+  }
+}
+

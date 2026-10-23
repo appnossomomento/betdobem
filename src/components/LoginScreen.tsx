@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerAccount } from "@/lib/register";
 import { SIZES, TEAMS, checkProfile } from "@/lib/profile-fields";
@@ -74,12 +74,16 @@ export function LoginScreen({ banned = false }: { banned?: boolean }) {
     afterAuth();
   }
 
+  const mode = creating ? "criar" : resetting ? "senha" : "entrar";
+  const moved = useRef(false);
+  if (creating || resetting) moved.current = true;
+
   return (
-    <div className="fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-bg px-4 py-8">
+    <div className="soft-in fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-bg px-4 py-8">
       <section className="w-full max-w-md rounded-[18px] border border-line bg-card p-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
         <img src="/logo-bet-do-bem/LogoPrincipal-completo.png" alt="BETdoBEM" className="mx-auto h-14 w-auto" />
         {banned ? <p className="mt-4 text-center text-sm font-semibold text-[#c4292e]">Conta suspensa.</p> : null}
-        <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
+        <form key={mode} onSubmit={submit} className={`mt-5 flex flex-col gap-3 ${moved.current ? "soft-in" : ""}`}>
           {creating ? (
             <>
               <Field label="Apelido"><input value={nick} maxLength={16} onChange={(event) => setNick(event.target.value)} required className={field} /></Field>

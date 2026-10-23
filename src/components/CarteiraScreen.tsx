@@ -63,8 +63,9 @@ function BetCard({ bet }: { bet: Bet }) {
           <span className="text-xs text-accent tabular-nums">{money(Number(bet.potential_return))}</span>
         </span>
       </button>
-      {open ? (
-        <ul className="mt-2 flex flex-col gap-1">
+      <div className={`fold ${open ? "fold-open" : ""}`}>
+        <div className="fold-inner">
+        <ul className={`flex flex-col gap-1 ${open ? "mt-2" : ""}`}>
           {legs.map((leg, index) => (
             <li key={`${bet.id}-${index}`} className="flex justify-between text-xs text-muted">
               <span>{leg.phrase}</span>
@@ -72,7 +73,8 @@ function BetCard({ bet }: { bet: Bet }) {
             </li>
           ))}
         </ul>
-      ) : null}
+        </div>
+      </div>
     </li>
   );
 }

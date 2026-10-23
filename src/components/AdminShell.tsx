@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ScreenFade } from "./ScreenFade";
 
 const links = [
   ["Visão", "/admin"],
@@ -21,7 +22,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           ))}
           <Link href="/" className="rounded-lg px-2 py-1.5 text-sm font-semibold text-accent">Voltar ao app</Link>
         </aside>
-        <main className="min-w-0">{children}</main>
+        <main className="min-w-0">
+          <ScreenFade>{children}</ScreenFade>
+        </main>
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import { Chevron, Coin } from "./Icons";
 export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, poll = null }: { games: OddGame[]; cards: RoundCard[]; weeklyRows: RankRow[]; monthlyRows: RankRow[]; leagueRows: League[]; poll?: ReactNode }) {
   const { picks, choose } = useBet();
   const [period, setPeriod] = useState<"Semanal" | "Mensal">("Semanal");
+  const [periodMoved, setPeriodMoved] = useState(false);
   const [champ, setChamp] = useState(1);
   const [league, setLeague] = useState(0);
   const [rankingOpen, setRankingOpen] = useState(false);
@@ -67,33 +68,35 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
               <h2 id="ranking-titulo" className="text-[15px] tracking-tight">Ranking</h2>
               <Switch
                 label={period}
-                onPrev={() => setPeriod((current) => (current === "Semanal" ? "Mensal" : "Semanal"))}
-                onNext={() => setPeriod((current) => (current === "Semanal" ? "Mensal" : "Semanal"))}
+                onPrev={() => { setPeriodMoved(true); setPeriod((current) => (current === "Semanal" ? "Mensal" : "Semanal")); }}
+                onNext={() => { setPeriodMoved(true); setPeriod((current) => (current === "Semanal" ? "Mensal" : "Semanal")); }}
                 prevLabel="Ranking anterior"
                 nextLabel="Próximo ranking"
               />
             </div>
             <button type="button" className="flex w-full items-center justify-between min-[880px]:hidden" aria-expanded={rankingOpen} onClick={() => setRankingOpen((open) => !open)}>
               <span className="text-[15px] tracking-tight">Ranking</span>
-              <span className={`text-muted ${rankingOpen ? "rotate-180" : ""}`}>
+              <span className={`chevron text-muted ${rankingOpen ? "rotate-180" : ""}`}>
                 <Chevron dir="down" />
               </span>
             </button>
-            <div className={rankingOpen ? "max-[879px]:mt-4" : "hidden min-[880px]:block"}>
+            <div className={`fold fold-desk ${rankingOpen ? "fold-open" : ""}`}>
+            <div className={`fold-inner ${rankingOpen ? "max-[879px]:mt-4" : ""}`}>
             <div className="mb-4 flex justify-end min-[880px]:hidden">
               <Switch
                 label={period}
-                onPrev={() => setPeriod((current) => (current === "Semanal" ? "Mensal" : "Semanal"))}
-                onNext={() => setPeriod((current) => (current === "Semanal" ? "Mensal" : "Semanal"))}
+                onPrev={() => { setPeriodMoved(true); setPeriod((current) => (current === "Semanal" ? "Mensal" : "Semanal")); }}
+                onNext={() => { setPeriodMoved(true); setPeriod((current) => (current === "Semanal" ? "Mensal" : "Semanal")); }}
                 prevLabel="Ranking anterior"
                 nextLabel="Próximo ranking"
               />
             </div>
-            <ol>
+            <ol key={period} className={periodMoved ? "soft-in" : ""}>
               {rows.length === 0 ? <li className="border-t border-line py-6 text-sm text-muted">Ninguém no ranking ainda</li> : rows.map((row) => (
                 <RankItem key={`${period}-${row.place}-${row.initials}`} row={row} />
               ))}
             </ol>
+            </div>
             </div>
           </section>
 
@@ -221,13 +224,15 @@ function LeagueBoard({ leagues, index, open, onToggle, onCycle }: { leagues: Lea
       <section className="rounded-[18px] border border-line bg-card px-[18px] pt-4 pb-2 shadow-[0_10px_28px_rgba(0,0,0,0.28)]" aria-label="Ligas">
         <button type="button" className="flex w-full items-center justify-between min-[880px]:hidden" aria-expanded={open} onClick={onToggle}>
           <span className="text-[15px] tracking-tight">Ligas</span>
-          <span className={`text-muted ${open ? "rotate-180" : ""}`}>
+          <span className={`chevron text-muted ${open ? "rotate-180" : ""}`}>
             <Chevron dir="down" />
           </span>
         </button>
-        <div className={open ? "max-[879px]:mt-4" : "hidden min-[880px]:block"}>
+        <div className={`fold fold-desk ${open ? "fold-open" : ""}`}>
+          <div className={`fold-inner ${open ? "max-[879px]:mt-4" : ""}`}>
           <h2 className="mb-4 hidden text-[15px] tracking-tight min-[880px]:block">Ligas</h2>
           <p className="border-t border-line py-6 text-sm text-muted">Nenhuma liga</p>
+          </div>
         </div>
       </section>
     );
@@ -270,11 +275,12 @@ function LeagueBoard({ leagues, index, open, onToggle, onCycle }: { leagues: Lea
     <section className="rounded-[18px] border border-line bg-card px-[18px] pt-4 pb-2 shadow-[0_10px_28px_rgba(0,0,0,0.28)]" aria-label="Ligas">
       <button type="button" className="flex w-full items-center justify-between min-[880px]:hidden" aria-expanded={open} onClick={onToggle}>
         <span className="text-[15px] tracking-tight">Ligas</span>
-        <span className={`text-muted ${open ? "rotate-180" : ""}`}>
+        <span className={`chevron text-muted ${open ? "rotate-180" : ""}`}>
           <Chevron dir="down" />
         </span>
       </button>
-      <div className={open ? "max-[879px]:mt-4" : "hidden min-[880px]:block"}>
+      <div className={`fold fold-desk ${open ? "fold-open" : ""}`}>
+      <div className={`fold-inner ${open ? "max-[879px]:mt-4" : ""}`}>
       <div className="mb-4 grid min-h-10 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
         <button
           type="button"
@@ -313,6 +319,7 @@ function LeagueBoard({ leagues, index, open, onToggle, onCycle }: { leagues: Lea
           <RankItem key={`${league.name}-${row.place}-${row.initials}`} row={row} />
         ))}
       </ol>
+      </div>
       </div>
     </section>
   );
