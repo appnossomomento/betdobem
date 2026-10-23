@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { PushDesk } from "@/components/PushDesk";
 import { loadDirectory } from "@/lib/admin-data";
@@ -14,6 +15,7 @@ export default function AdminPushPage() {
 }
 
 async function PushBody() {
+  await connection();
   const admin = createAdminClient();
   const day = saoPauloDay(Date.now());
   const [board, people, subscriptions, deliveries] = await Promise.all([
