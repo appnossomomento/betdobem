@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const bucket = "admin-data";
@@ -61,6 +62,7 @@ function blank(): Board {
 let cache: { at: number; board: Board } | null = null;
 
 export async function readBoard(force = false): Promise<Board> {
+  await connection();
   if (!force && cache && Date.now() - cache.at < 8000) return cache.board;
   try {
     const admin = createAdminClient();
