@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { connection } from "next/server";
 import { publicAvatar } from "@/lib/avatar-url";
 import { isAdminEmail } from "@/lib/admins";
@@ -25,7 +26,7 @@ export type Account = {
   unread: number;
 };
 
-export async function getAccount(): Promise<Account | null> {
+export const getAccount = cache(async function getAccount(): Promise<Account | null> {
   await connection();
   try {
     const supabase = await createClient();
@@ -75,7 +76,7 @@ export async function getAccount(): Promise<Account | null> {
   } catch {
     return null;
   }
-}
+});
 
 function text(...values: unknown[]) {
   for (const value of values) {

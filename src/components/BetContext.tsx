@@ -46,6 +46,10 @@ export function BetProvider({ children, initialBalance }: { children: React.Reac
   const skipSave = useRef(true);
 
   useEffect(() => {
+    setBalance(initialBalance ?? 0);
+  }, [initialBalance]);
+
+  useEffect(() => {
     const saved = readSlip();
     if (saved?.order.length) dispatch({ type: "hydrate", picks: saved.picks, order: saved.order });
   }, []);
