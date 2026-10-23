@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { readdirSync } from "fs";
-import path from "path";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 
@@ -12,20 +10,22 @@ const outfit = Outfit({
 
 const tabTitle = "BETdoBEM - Projeta seu Patrimônio!";
 
-function shareImage() {
-  const dir = path.join(process.cwd(), "public", "logo-bet-do-bem");
-  const known = new Set(["logoprincpal-semtexto.png", "logoprincipal-branco.png", "logoprincipal-completo.png"]);
-  const file = readdirSync(dir).find((name) => /\.(png|jpe?g|webp)$/i.test(name) && !known.has(name.toLowerCase()));
-  return file ? `/logo-bet-do-bem/${encodeURIComponent(file)}` : null;
-}
-
-const image = shareImage();
+const shareImage = "https://betdobem.vercel.app/logo-bet-do-bem/logo-share.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://betdobem.vercel.app"),
   title: { default: tabTitle, template: "%s" },
   description: "BETdoBEM",
-  ...(image ? { openGraph: { images: [{ url: image, alt: tabTitle }] } } : {}),
+  openGraph: {
+    title: tabTitle,
+    description: "BETdoBEM",
+    images: [{ url: shareImage, width: 1678, height: 937, alt: tabTitle }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: tabTitle,
+    images: [shareImage],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
