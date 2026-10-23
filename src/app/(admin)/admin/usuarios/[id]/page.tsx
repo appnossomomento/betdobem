@@ -18,6 +18,7 @@ async function UserBody({ params }: { params: Promise<{ id: string }> }) {
   const person = (await loadDirectory()).find((item) => item.id === id);
   if (!person) notFound();
   const admin = createAdminClient();
+  const { count: pushDevices } = await admin.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", id);
   const { data: bets } = await admin.from("bets").select("id, stake, status, combined_odd, placed_at, bet_legs(phrase)").eq("user_id", id).order("placed_at", { ascending: false }).limit(20);
   const { data: ledger } = await admin.from("ledger").select("kind, amount, created_at").eq("user_id", id).order("created_at", { ascending: false }).limit(20);
   const { data: memberships } = await admin.from("league_members").select("league_id").eq("user_id", id);
@@ -33,7 +34,7 @@ async function UserBody({ params }: { params: Promise<{ id: string }> }) {
     ["Camisa", person.shirt || "—"],
     ["Short", person.bottom || "—"],
     ["Saldo", person.balance],
-    ["Apostas", person.bets],
+    ["Push", (pushDevices ?? 0) > 0 ? "Ativo" : "Inativo"],
     ["VIP", person.vip ? "Sim" : "Não"],
   ];
 
