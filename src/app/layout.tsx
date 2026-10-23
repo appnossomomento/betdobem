@@ -10,7 +10,7 @@ const outfit = Outfit({
 });
 
 const tabTitle = "BETdoBEM - Projeta seu Patrimônio!";
-const shareText = "Proteja sua banca de moedas fictícias, com reset de patrimônio a cada semana e odds atualizadas!";
+const shareText = "Proteja sua banca de BENS, com reset de patrimônio a cada semana e odds atualizadas!";
 
 const shareImage = "https://betdobem.vercel.app/logo-bet-do-bem/logo-share.png";
 

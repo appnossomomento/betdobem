@@ -7,7 +7,7 @@ import { loadLeague, loadLeaguePreview } from "@/lib/social";
 
 export const metadata: Metadata = {
   title: "BETdoBEM — Liga",
-  description: "Proteja sua banca de moedas fictícias, com reset de patrimônio a cada semana e odds atualizadas!",
+  description: "Proteja sua banca de BENS, com reset de patrimônio a cada semana e odds atualizadas!",
 };
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
