@@ -19,8 +19,7 @@ export async function createLeague(input: { name: string; prize: string; photo: 
   const board = await readBoard();
   if (!board.vips.includes(user.id)) return { ok: false as const, error: "Criar liga é benefício VIP." };
   const admin = createAdminClient();
-  const { count } = await admin.from("league_members").select("league_id", { count: "exact", head: true }).eq("user_id", user.id);
-  if ((count ?? 0) >= 3) return { ok: false as const, error: "Você já está em 3 ligas." };
+  if (await activeMemberships(admin, user.id) >= 3) return { ok: false as const, error: "Você já está em 3 ligas." };
   if (!input.photo.startsWith("data:image/")) return { ok: false as const, error: "Inclua uma foto da liga." };
   const name = input.name.trim();
   if (!name) return { ok: false as const, error: "Dê um nome para a liga." };
@@ -92,8 +91,7 @@ export async function joinLeague(input: { id?: string; code?: string }) {
   const user = await viewer();
   if (!user) return { ok: false as const, error: "Entre na conta." };
   const admin = createAdminClient();
-  const { count } = await admin.from("league_members").select("league_id", { count: "exact", head: true }).eq("user_id", user.id);
-  if ((count ?? 0) >= 3) return { ok: false as const, error: "Você já está em 3 ligas." };
+  if (await activeMemberships(admin, user.id) >= 3) return { ok: false as const, error: "Você já está em 3 ligas." };
   const { data: leagues } = await admin.from("leagues").select("id, visibility, player_cap, status").eq("status", "active");
   const code = (input.code ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 6).toLowerCase();
   const league = input.id
@@ -109,6 +107,14 @@ export async function joinLeague(input: { id?: string; code?: string }) {
   revalidatePath("/");
   revalidatePath(`/liga/${league.id}`);
   return { ok: true as const };
+}
+
+async function activeMemberships(admin: ReturnType<typeof createAdminClient>, userId: string) {
+  const { data: memberships } = await admin.from("league_members").select("league_id").eq("user_id", userId);
+  const ids = (memberships ?? []).map((item) => item.league_id as string);
+  if (ids.length === 0) return 0;
+  const { count } = await admin.from("leagues").select("id", { count: "exact", head: true }).in("id", ids).eq("status", "active");
+  return count ?? 0;
 }
 
 function itemCode(id: string) {

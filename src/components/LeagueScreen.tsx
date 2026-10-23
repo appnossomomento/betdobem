@@ -52,20 +52,21 @@ export function LeagueScreen({ league, member, invite, signedIn, acceptOnLoad }:
 
   async function share() {
     if (!league.id) return;
-    const url = `${window.location.origin}/liga/${league.id}?convite=1`;
+    const code = leagueCode(league.id);
+    const text = `Entra na liga ${league.name} no BETdoBEM. Código: ${code}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: league.name, url });
+        await navigator.share({ title: league.name, text });
         return;
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
     }
     try {
-      await navigator.clipboard.writeText(url);
-      setMessage("Link copiado.");
+      await navigator.clipboard.writeText(code);
+      setMessage("Código copiado.");
     } catch {
-      setMessage(url);
+      setMessage(code);
     }
   }
 
@@ -118,8 +119,14 @@ export function LeagueScreen({ league, member, invite, signedIn, acceptOnLoad }:
               )}
             </ol>
           </section>
+          {league.id ? (
+            <section className="rounded-[18px] border border-line bg-card px-[18px] py-4">
+              <p className="text-xs text-muted">Código da liga</p>
+              <p className="mt-1 text-2xl font-bold tracking-[0.18em]">{leagueCode(league.id)}</p>
+            </section>
+          ) : null}
           {message ? <p className="text-sm text-accent" role="status">{message}</p> : null}
-          <button type="button" onClick={share} className="h-12 w-full rounded-xl bg-accent text-base font-bold text-accent-ink">Convide amigos</button>
+          <button type="button" onClick={share} className="h-12 w-full rounded-xl bg-accent text-base font-bold text-accent-ink">Enviar código</button>
           <button type="button" onClick={exit} disabled={pending} className="h-12 w-full rounded-xl bg-[#c4292e] text-base font-bold text-white disabled:opacity-60">Sair da liga</button>
         </>
       ) : null}
@@ -140,6 +147,10 @@ export function LeagueScreen({ league, member, invite, signedIn, acceptOnLoad }:
       ) : null}
     </div>
   );
+}
+
+function leagueCode(id: string) {
+  return id.replace(/-/g, "").slice(0, 6).toUpperCase();
 }
 
 function RankLine({ row, host }: { row: RankRow; host?: boolean }) {

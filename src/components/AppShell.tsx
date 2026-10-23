@@ -29,25 +29,40 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
   const pathname = usePathname();
   const items = account ? nav : nav.filter((item) => item.href === "/jogos");
   const tutorial = Boolean(account) && !pathname.startsWith("/admin");
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousRoot = root.style.overflow;
+    const previousBody = document.body.style.overflow;
+    root.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = previousRoot;
+      document.body.style.overflow = previousBody;
+    };
+  }, []);
   return (
     <AccountContext.Provider value={account}>
       <BetProvider initialBalance={account ? account.balance : null}>
-        <header className="fixed inset-x-0 top-0 z-20 border-b border-line bg-bg pt-[env(safe-area-inset-top)]">
-          <div className="mx-auto flex h-14 max-w-[1120px] items-center justify-between px-4 min-[880px]:px-6">
-            <img src="/logo-bet-do-bem/LogoPrincipal-completo.png" alt="BETdoBEM" className="h-12 w-auto max-w-[52vw]" />
-            <Balance initials={account?.initials ?? null} avatarUrl={account?.avatarUrl ?? ""} unread={account?.unread ?? 0} />
+        <div className="fixed inset-0 flex flex-col overflow-hidden bg-bg">
+          <header className="z-20 shrink-0 border-b border-line bg-bg pt-[env(safe-area-inset-top)]">
+            <div className="mx-auto flex h-14 max-w-[1120px] items-center justify-between px-4 min-[880px]:px-6">
+              <img src="/logo-bet-do-bem/LogoPrincipal-completo.png" alt="BETdoBEM" className="h-12 w-auto max-w-[52vw]" />
+              <Balance initials={account?.initials ?? null} avatarUrl={account?.avatarUrl ?? ""} unread={account?.unread ?? 0} />
+            </div>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 py-4 min-[880px]:px-6 min-[880px]:py-5">
+              {children}
+            </div>
           </div>
-        </header>
-        <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 pt-[calc(56px+env(safe-area-inset-top)+16px)] pb-4 min-[880px]:px-6 min-[880px]:pb-5">
-          {children}
+          <Slip />
+          <InstallPrompt signedIn={tutorial} />
+          <NotifyPrompt signedIn={tutorial} />
+          <PollPopup signedIn={Boolean(account)} />
+          <Suspense fallback={<nav className="h-16 shrink-0 border-t border-line bg-nav" aria-label="Menu principal" />}>
+            <BottomNav items={items} />
+          </Suspense>
         </div>
-        <Slip />
-        <InstallPrompt signedIn={tutorial} />
-        <NotifyPrompt signedIn={tutorial} />
-        <PollPopup signedIn={Boolean(account)} />
-        <Suspense fallback={<nav className="fixed inset-x-0 bottom-0 z-10 h-16 border-t border-line bg-nav" aria-label="Menu principal" />}>
-          <BottomNav items={items} />
-        </Suspense>
       </BetProvider>
     </AccountContext.Provider>
   );
@@ -91,7 +106,7 @@ function Slip() {
   }, [slip.idle]);
   return (
     <>
-      <button type="button" disabled={slip.idle} onClick={openTicket} className={`fixed inset-x-0 z-[9] flex h-[52px] items-center gap-2.5 border-t border-line px-4 text-left ${slip.multi ? "bg-multi" : "bg-card"}`} style={{ bottom: "calc(64px + env(safe-area-inset-bottom))" }} aria-label="Aposta">
+      <button type="button" disabled={slip.idle} onClick={openTicket} className={`flex h-[52px] shrink-0 items-center gap-2.5 border-t border-line px-4 text-left ${slip.multi ? "bg-multi" : "bg-card"}`} aria-label="Aposta">
         <p className={`m-0 min-w-0 flex-1 truncate font-semibold ${slip.idle ? "text-[13px] font-medium text-muted" : "text-[15px] text-ink"}`}>{slip.text}</p>
         {slip.multi ? <span className="rounded-full bg-multi-pill px-2 py-1 text-[11px] font-bold tracking-wide text-multi-ink uppercase">Múltipla</span> : null}
         <span className={`min-w-16 rounded-[10px] px-2.5 py-1.5 text-center text-[15px] font-bold tabular-nums ${slip.idle ? "bg-card-2 text-muted" : "bg-accent text-accent-ink"}`}>{slip.odd}</span>
@@ -238,7 +253,7 @@ function coins(value: number) {
 function BottomNav({ items }: { items: typeof nav }) {
   const pathname = usePathname();
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-nav pb-[env(safe-area-inset-bottom)]" style={{ height: "calc(64px + env(safe-area-inset-bottom))" }} aria-label="Menu principal">
+    <nav className="flex shrink-0 border-t border-line bg-nav pb-[env(safe-area-inset-bottom)]" style={{ height: "calc(64px + env(safe-area-inset-bottom))" }} aria-label="Menu principal">
       {items.map((item) => {
         const active = item.href === "/" ? pathname === "/" : item.href === "/jogos" ? pathname === "/jogos" || pathname.startsWith("/jogo/") : pathname === item.href;
         return (

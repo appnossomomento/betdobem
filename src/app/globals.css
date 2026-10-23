@@ -23,9 +23,6 @@ body {
   color: var(--color-ink);
 }
 
-body {
-  padding-bottom: calc(64px + 52px + env(safe-area-inset-bottom));
-}
 
 @keyframes soft-in {
   from {
