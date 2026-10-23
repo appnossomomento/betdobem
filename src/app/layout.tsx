@@ -10,7 +10,7 @@ const outfit = Outfit({
   weight: ["400", "500", "600", "700"],
 });
 
-const tabTitle = "BetdoBem - Proteja seu patrimônio";
+const tabTitle = "BETdoBEM - Projeta seu Patrimônio!";
 
 function shareImage() {
   const dir = path.join(process.cwd(), "public", "logo-bet-do-bem");
