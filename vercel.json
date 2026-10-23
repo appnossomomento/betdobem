@@ -2,7 +2,6 @@
   "crons": [
     { "path": "/api/settle", "schedule": "0 3 * * *" },
     { "path": "/api/market-open", "schedule": "0 11 * * *" },
-    { "path": "/api/push/tick", "schedule": "*/5 * * * *" },
     { "path": "/api/reset", "schedule": "0 4 * * 2" }
   ]
 }

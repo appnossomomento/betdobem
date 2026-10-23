@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { runPushClock } from "@/lib/push-clock";
 import { settleOpenBets } from "@/lib/settle";
 
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ ok: false }, { status: 401 });
   const settled = await settleOpenBets();
-  return NextResponse.json({ ok: true, settled });
+  const push = await runPushClock().catch(() => ({ ok: false as const }));
+  return NextResponse.json({ ok: true, settled, push });
 }
 
 function authorized(request: Request) {

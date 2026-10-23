@@ -79,13 +79,13 @@ export function PushDesk({ ready, morning, kickoff, plans }: { ready: number; mo
 
   return (
     <div className="mt-4 flex flex-col gap-6">
-      <p className="text-sm text-muted">{ready === 1 ? "1 aparelho com notificação ligada." : `${ready} aparelhos com notificação ligada.`} Conta suspensa fica de fora. O relógio passa a cada 5 minutos, no horário de São Paulo.</p>
+      <p className="text-sm text-muted">{ready === 1 ? "1 aparelho com notificação ligada." : `${ready} aparelhos com notificação ligada.`} Conta suspensa fica de fora. Disparar agora sai na hora. O relógio deste plano passa à 00:00 e às 08:00, horário de São Paulo, e um horário marcado sai se essa passagem cair em até 10 minutos dele.</p>
 
       <section>
         <h2 className="text-base">Regras do mercado</h2>
         <div className="mt-3 grid gap-3">
           <Rule on={rules.morning} label="Todo dia às 08:00, se houver jogo" detail="Mercado aberto. Faça suas apostas." onClick={() => toggle("morning")} />
-          <Rule on={rules.kickoff} label="16 minutos antes do primeiro apito" detail="Partidas iniciando. Faça suas apostas para não perder a rodada." onClick={() => toggle("kickoff")} />
+          <Rule on={rules.kickoff} label="16 minutos antes do primeiro apito" detail="Partidas iniciando. Faça suas apostas para não perder a rodada. Só sai se o relógio passar dentro dessa janela." onClick={() => toggle("kickoff")} />
         </div>
       </section>
 

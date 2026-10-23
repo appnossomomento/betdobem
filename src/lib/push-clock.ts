@@ -32,22 +32,26 @@ export async function runPushClock(now = Date.now()) {
   if (!firebaseAccount()) return { ok: true as const, skipped: "firebase" as const, plans: 0 };
   const board = await readBoard(true);
   const day = saoPauloDay(now);
+  const grace = 10 * minute;
   let plans = 0;
   let changed = false;
   for (const plan of board.pushPlans) {
     const due = Date.parse(plan.nextAt);
     if (!plan.enabled || !Number.isFinite(due) || due > now) continue;
-    const deliveryKind = plan.mode === "once" ? `plan-${plan.id}` : `plan-${plan.id}-${day}`;
-    await dispatchText(plan.title, plan.body, deliveryKind);
+    const onTime = now - due <= grace;
+    if (onTime) {
+      const deliveryKind = plan.mode === "once" ? `plan-${plan.id}` : `plan-${plan.id}-${day}`;
+      await dispatchText(plan.title, plan.body, deliveryKind);
+      plans += 1;
+    }
     if (plan.mode === "once") {
       plan.enabled = false;
-      plan.sentAt = new Date(now).toISOString();
+      plan.sentAt = onTime ? new Date(now).toISOString() : null;
     } else {
       const following = nextRun(plan, now);
       if (following) plan.nextAt = following;
       else plan.enabled = false;
     }
-    plans += 1;
     changed = true;
   }
   if (changed) await writeBoard(board);
