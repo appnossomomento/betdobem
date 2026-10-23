@@ -7,6 +7,8 @@ import type { Account } from "@/lib/account";
 import { saveSlip } from "@/lib/slip-store";
 import { BetProvider, useBet } from "./BetContext";
 import { Bell, Coin } from "./Icons";
+import { InstallPrompt } from "./InstallPrompt";
+import { NotifyPrompt } from "./NotifyPrompt";
 import { PollPopup } from "./PollPopup";
 
 const AccountContext = createContext<Account | null>(null);
@@ -24,7 +26,9 @@ const nav = [
 ];
 
 export function AppShell({ children, account }: { children: React.ReactNode; account: Account | null }) {
+  const pathname = usePathname();
   const items = account ? nav : nav.filter((item) => item.href === "/jogos");
+  const tutorial = Boolean(account) && !pathname.startsWith("/admin");
   return (
     <AccountContext.Provider value={account}>
       <BetProvider initialBalance={account ? account.balance : null}>
@@ -38,6 +42,8 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
           {children}
         </div>
         <Slip />
+        <InstallPrompt signedIn={tutorial} />
+        <NotifyPrompt signedIn={tutorial} />
         <PollPopup signedIn={Boolean(account)} />
         <Suspense fallback={<nav className="fixed inset-x-0 bottom-0 z-10 h-16 border-t border-line bg-nav" aria-label="Menu principal" />}>
           <BottomNav items={items} />
@@ -251,7 +257,7 @@ function NavIcon({ d, ball }: { d: string; ball?: boolean }) {
     return (
       <svg viewBox="0 0 24 24" className="size-[22px]" aria-hidden="true">
         <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M12 4 V8 M12 16 V20 M4 12 H8 M16 12 H20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M12 7.6 L16.2 10.6 L14.6 15.6 H9.4 L7.8 10.6 Z M12 7.6 V4 M16.2 10.6 L19.6 9.5 M14.6 15.6 L16.7 18.5 M9.4 15.6 L7.3 18.5 M7.8 10.6 L4.4 9.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="miter" />
       </svg>
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearAvatar, saveAvatar } from "@/lib/avatar";
@@ -8,6 +8,8 @@ import type { Account } from "@/lib/account";
 import { saveProfile } from "@/lib/profile-save";
 import { SIZES, TEAMS, formatCpf } from "@/lib/profile-fields";
 import { createClient } from "@/lib/supabase/client";
+import { standalone } from "@/lib/pwa-install";
+import { saoPauloDay } from "@/lib/market";
 
 const field = "mt-1 h-12 w-full rounded-xl bg-card-2 px-3 text-base text-ink outline-none";
 
@@ -76,6 +78,8 @@ export function PerfilScreen({ account }: { account: Account }) {
   }
 
   async function leave() {
+    const { disablePush } = await import("@/lib/enable-push");
+    await disablePush();
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/");
@@ -121,8 +125,66 @@ export function PerfilScreen({ account }: { account: Account }) {
         {message ? <p className="text-sm text-accent" role="status">{message}</p> : null}
         <button type="submit" disabled={pending} className="h-12 rounded-xl bg-accent text-base font-bold text-accent-ink disabled:opacity-60">Salvar</button>
       </form>
+      <PushRetry />
       <button type="button" onClick={leave} className="mt-4 h-12 w-full rounded-xl bg-[#c4292e] text-base font-bold text-white">Sair</button>
     </section>
+  );
+}
+
+function PushRetry() {
+  const [state, setState] = useState<"off" | "on" | "denied" | "later" | "ask">("off");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (!standalone() || !("Notification" in window)) return;
+    const today = saoPauloDay(Date.now());
+    const denied = Notification.permission === "denied" || localStorage.getItem("betdobem.push.negado") === "1";
+    if (Notification.permission === "granted") {
+      setState("on");
+      return;
+    }
+    if (denied) {
+      setState("denied");
+      return;
+    }
+    if (localStorage.getItem("betdobem.push.adiado") === today) {
+      setState("later");
+      return;
+    }
+    fetch("/api/push/config")
+      .then((response) => response.json())
+      .then((data: { ok?: boolean }) => {
+        if (data.ok) setState("ask");
+      })
+      .catch(() => undefined);
+  }, []);
+
+  if (state === "off") return null;
+
+  async function retry() {
+    localStorage.removeItem("betdobem.push.negado");
+    const { enablePush } = await import("@/lib/enable-push");
+    const result = await enablePush();
+    if (result.ok) {
+      setState("on");
+      setNote("Notificações ligadas.");
+      return;
+    }
+    if (result.error === "denied") {
+      localStorage.setItem("betdobem.push.negado", "1");
+      setState("denied");
+    }
+    setNote(result.error === "denied" ? "As notificações ficam nos ajustes do sistema, dentro do app instalado." : "Não foi possível ligar agora.");
+  }
+
+  const label = state === "on" ? "Notificações ligadas." : state === "denied" ? "Notificações desligadas." : state === "later" ? "Notificações adiadas até amanhã." : "Notificações desligadas.";
+
+  return (
+    <div className="mt-4">
+      <p className="text-sm">{label}</p>
+      {state === "ask" ? <button type="button" onClick={retry} className="mt-2 h-12 w-full rounded-xl bg-card-2 text-sm font-semibold">Ativar notificações</button> : null}
+      {note ? <p className="mt-2 text-sm text-muted">{note}</p> : null}
+    </div>
   );
 }
 

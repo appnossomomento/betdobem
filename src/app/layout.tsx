@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -26,12 +27,16 @@ export const metadata: Metadata = {
     title: tabTitle,
     images: [shareImage],
   },
+  applicationName: "BETdoBEM",
+  appleWebApp: { capable: true, title: "BETdoBEM", statusBarStyle: "black-translucent" },
+  icons: { apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }] },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${outfit.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">
+        <PwaRegister />
         {children}
       </body>
     </html>
