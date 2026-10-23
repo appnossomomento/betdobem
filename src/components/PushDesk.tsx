@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPushPlan, removePushPlan, savePushRules, sendPush, sendPushText, setPushPlanEnabled } from "@/lib/admin-actions";
+import { ZONE } from "@/lib/economy";
+import { saoPauloDay } from "@/lib/market";
 import { saoPauloStamp } from "@/lib/push-when";
 
 type Mode = "once" | "daily" | "weekly";
@@ -124,7 +126,7 @@ export function PushDesk({ ready, morning, kickoff, plans }: { ready: number; mo
               </select>
             </label>
           ) : null}
-          {mode === "once" ? <label className="text-xs text-muted">Data<input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={field} /></label> : null}
+          {mode === "once" ? <DateField value={date} onChange={setDate} /> : null}
           <label className="text-xs text-muted">Hora de São Paulo<input type="time" value={time} onChange={(event) => setTime(event.target.value)} className={field} /></label>
           <p className="text-sm">{title}</p>
           <p className="text-sm text-muted">{body}</p>
@@ -147,6 +149,74 @@ export function PushDesk({ ready, morning, kickoff, plans }: { ready: number; mo
       {note ? <p className="text-sm text-accent" role="status">{note}</p> : null}
     </div>
   );
+}
+
+const weekHeads = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const weekNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function DateField({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const today = saoPauloDay(Date.now());
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState((value || today).slice(0, 7));
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function close(event: PointerEvent) {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+
+  const blanks = weekdayOf(`${month}-01`);
+  const count = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
+  const cells = [...Array(blanks).fill(null), ...Array.from({ length: count }, (_, index) => index + 1)];
+  const rawTitle = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: ZONE }).format(new Date(`${month}-01T12:00:00-03:00`));
+  const title = rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1);
+
+  return (
+    <div ref={root} className="relative">
+      <span className="text-xs text-muted">Data</span>
+      <button type="button" aria-expanded={open} aria-haspopup="dialog" onClick={() => { setMonth((value || today).slice(0, 7)); setOpen((current) => !current); }} className={`${field} text-left`}>
+        {value ? value.split("-").reverse().join("/") : "Escolher a data"}
+      </button>
+      {open ? (
+        <div role="dialog" aria-label="Calendário" className="absolute z-30 mt-2 w-full rounded-2xl border border-line bg-card p-3">
+          <div className="flex items-center justify-between gap-2">
+            <button type="button" aria-label="Mês anterior" onClick={() => setMonth(shiftMonth(month, -1))} className="h-10 w-10 rounded-lg bg-card-2 text-lg">‹</button>
+            <span className="text-sm font-semibold">{title}</span>
+            <button type="button" aria-label="Próximo mês" onClick={() => setMonth(shiftMonth(month, 1))} className="h-10 w-10 rounded-lg bg-card-2 text-lg">›</button>
+          </div>
+          <div className="mt-3 grid grid-cols-7 text-center text-[10px] uppercase text-muted">
+            {weekHeads.map((label) => <span key={label}>{label}</span>)}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {cells.map((day, index) => {
+              if (day == null) return <span key={`vazio-${index}`} />;
+              const iso = `${month}-${String(day).padStart(2, "0")}`;
+              const picked = iso === value;
+              return (
+                <button key={iso} type="button" onClick={() => { onChange(iso); setOpen(false); }} className={`h-10 rounded-lg text-sm ${picked ? "bg-accent font-bold text-accent-ink" : iso === today ? "bg-card-2 font-semibold" : ""}`}>
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function weekdayOf(day: string) {
+  const name = new Intl.DateTimeFormat("en-US", { timeZone: ZONE, weekday: "short" }).format(new Date(`${day}T12:00:00-03:00`));
+  return weekNames.indexOf(name);
+}
+
+function shiftMonth(month: string, delta: number) {
+  const shifted = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1 + delta, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function Rule({ on, label, detail, onClick }: { on: boolean; label: string; detail: string; onClick: () => void }) {
