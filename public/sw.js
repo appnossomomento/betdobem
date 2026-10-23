@@ -1,4 +1,4 @@
-const cacheName = "betdobem-shell-v1";
+const cacheName = "betdobem-shell-v2";
 const precache = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png", "/logo-bet-do-bem/LogoPrincipal-completo.png"];
 
 self.addEventListener("install", (event) => {

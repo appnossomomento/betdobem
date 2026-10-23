@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   applicationName: "BETdoBEM",
   appleWebApp: { capable: true, title: "BETdoBEM", statusBarStyle: "black-translucent" },
-  icons: { apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }] },
+  icons: { apple: [{ url: "/icons/apple-touch-icon.png?v=2", sizes: "180x180" }] },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
