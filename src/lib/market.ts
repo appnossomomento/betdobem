@@ -2,6 +2,16 @@ import { ZONE } from "@/lib/economy";
 
 const leadMs = 60_000;
 
+const liveWindowMs = 3.5 * 60 * 60 * 1000;
+
+export function followLive(kickoff: string, finished: boolean, live: boolean, now = Date.now()) {
+  if (live) return true;
+  if (finished) return false;
+  const start = Date.parse(kickoff);
+  if (!Number.isFinite(start)) return false;
+  return start - 2 * 60_000 <= now && now - start < liveWindowMs;
+}
+
 export function marketOpen(kickoff: string, now = Date.now()) {
   const start = Date.parse(kickoff);
   if (!Number.isFinite(start)) return false;

@@ -5,12 +5,14 @@ import Link from "next/link";
 import {
   champs,
   leagueMarks,
+  liveLabel,
   type League,
   type OddGame,
   type RankRow,
   type RoundCard,
   type Side,
 } from "@/data/home";
+import { LivePulse } from "./LivePulse";
 import { RankAvatar } from "./RankAvatar";
 import { marketOpen } from "@/lib/market";
 import { useMarketNow } from "./MarketClock";
@@ -35,6 +37,7 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
 
   return (
     <div className="flex flex-col gap-4">
+      <LivePulse games={games} />
       <RoundStrip cards={cards} />
       {poll ? <div key="enquete">{poll}</div> : null}
 
@@ -111,7 +114,12 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
                     <CrestName name={game.away} logo={game.awayLogo} />
                     {filter === "todos" ? <p className="mt-1 text-xs text-muted">{game.competition}</p> : null}
                   </div>
-                  {marketOpen(game.kickoff, now) ? (
+                  {game.live ? (
+                    <Link href={`/jogo/${game.id}`} className="text-right">
+                      <span className="block text-lg font-bold tabular-nums leading-none">{game.score}</span>
+                      <span className="mt-1 block text-xs font-semibold text-accent">{liveLabel(game.clock)}</span>
+                    </Link>
+                  ) : marketOpen(game.kickoff, now) ? (
                     <div className="grid grid-cols-[52px_52px_52px] gap-1.5">
                       {game.one != null ? <OddLink side="1" value={game.one} /> : null}
                       {game.draw != null ? <OddLink side="X" value={game.draw} /> : null}
@@ -167,10 +175,10 @@ function RoundStrip({ cards }: { cards: RoundCard[] }) {
         </button>
         <div ref={scroller} className="flex min-w-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {cards.map((card) => (
-            <article key={`${card.home}-${card.away}`} className="flex w-[min(100%,320px)] shrink-0 snap-center flex-col gap-3 rounded-[18px] border border-line bg-card p-4 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+            <Link key={card.id} href={`/jogo/${card.id}`} className="flex w-[min(100%,320px)] shrink-0 snap-center flex-col gap-3 rounded-[18px] border border-line bg-card p-4 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">{card.league}</span>
-                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${card.live ? "bg-accent text-accent-ink" : "bg-card-2 text-ink"}`}>{card.live ? "Ao vivo" : "Pré-jogo"}</span>
+                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${card.live ? "bg-accent text-accent-ink" : "bg-card-2 text-ink"}`}>{card.live ? liveLabel(card.clock) : "Pré-jogo"}</span>
               </div>
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <Team name={card.home} logo={card.homeLogo} />
@@ -181,7 +189,7 @@ function RoundStrip({ cards }: { cards: RoundCard[] }) {
                 <span className="text-[13px] text-muted tabular-nums">{card.when}</span>
                 <span className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">{card.venue}</span>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
         <button type="button" aria-label="Próximo jogo" onClick={() => go(1)} className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-card-2 text-ink">

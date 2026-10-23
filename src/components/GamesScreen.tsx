@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { champs, oddFor, phraseFor, type ChampFilter, type OddGame, type Side } from "@/data/home";
+import Link from "next/link";
+import { champs, liveLabel, oddFor, phraseFor, type ChampFilter, type OddGame, type Side } from "@/data/home";
 import { kickoffDay, marketOpen, marketOpenLabel } from "@/lib/market";
 import { useBet } from "./BetContext";
+import { LivePulse } from "./LivePulse";
 import { useMarketNow } from "./MarketClock";
 import { PlacarToggle } from "./PlacarEntry";
 
@@ -50,6 +52,7 @@ export function GamesScreen({ games }: { games: OddGame[] }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <LivePulse games={games} />
       <header>
         <p className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">Futebol</p>
         <h1 className="mt-1 text-xl tracking-tight">Jogos</h1>
@@ -82,7 +85,7 @@ export function GamesScreen({ games }: { games: OddGame[] }) {
       {groups.map((group) => (
         <section key={group.key} className="flex flex-col gap-3" aria-label={group.key}>
           <h2 className="text-[15px] tracking-tight">{group.key}</h2>
-          <div className="grid grid-cols-2 gap-3 min-[880px]:grid-cols-3">
+          <div className={`grid gap-3 ${group.key === "Ao vivo" ? "grid-cols-1" : "grid-cols-2 min-[880px]:grid-cols-3"}`}>
             {group.games.map((game) => (
               <MatchCard key={game.id} game={game} now={now} selected={picks[game.id]?.key} onChoose={(side) => chooseSide(game, side)} />
             ))}
@@ -115,7 +118,7 @@ function MatchCard({ game, now, selected, onChoose }: { game: OddGame; now: numb
       <div className="flex items-start justify-between gap-1.5">
         <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:text-xs">{game.competition}</span>
         <span className="flex shrink-0 flex-col items-end gap-1">
-          {live ? <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-ink min-[880px]:px-2 min-[880px]:py-1 min-[880px]:text-xs">Ao vivo</span> : null}
+          {live ? <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-ink min-[880px]:px-2 min-[880px]:py-1 min-[880px]:text-xs">{liveLabel(game.clock)}</span> : null}
           <span className="text-[10px] text-muted tabular-nums min-[880px]:text-xs">{game.when}</span>
         </span>
       </div>
@@ -141,6 +144,11 @@ function MatchCard({ game, now, selected, onChoose }: { game: OddGame; now: numb
           {game.two != null ? <Odd side="2" value={game.two} on={selected === "2"} onChoose={() => onChoose("2")} /> : null}
           <PlacarToggle game={game} />
         </div>
+      ) : live ? (
+        <Link href={`/jogo/${game.id}`} className="mt-3 block">
+          <p className="text-xs font-semibold text-accent">Minuto a minuto</p>
+          {game.plays?.length ? <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted">{game.plays[game.plays.length - 1].text}</p> : null}
+        </Link>
       ) : (
         <p className="mt-3 text-xs font-semibold text-muted">Mercado fechado</p>
       )}
@@ -150,7 +158,7 @@ function MatchCard({ game, now, selected, onChoose }: { game: OddGame; now: numb
 
 function FinishedCard({ game }: { game: OddGame }) {
   return (
-    <article className="min-w-0 rounded-[18px] border border-line/60 bg-card/40 p-2.5 min-[880px]:p-4">
+    <Link href={`/jogo/${game.id}`} className="min-w-0 rounded-[18px] border border-line/60 bg-card/40 p-2.5 min-[880px]:p-4">
       <div className="flex items-start justify-between gap-1.5">
         <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:text-xs">{game.competition}</span>
         <span className="text-[10px] text-muted tabular-nums min-[880px]:text-xs">{game.when}</span>
@@ -162,7 +170,7 @@ function FinishedCard({ game }: { game: OddGame }) {
         </div>
         <span className="text-base font-semibold tracking-tight text-muted tabular-nums min-[880px]:text-[22px]">{game.score}</span>
       </div>
-    </article>
+    </Link>
   );
 }
 

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { oddFor, phraseFor, type OddGame, type Side } from "@/data/home";
+import { liveLabel, oddFor, phraseFor, type OddGame, type Side } from "@/data/home";
 import { kickoffDay, marketOpen, marketOpenLabel } from "@/lib/market";
 import { useBet } from "./BetContext";
+import { LivePulse } from "./LivePulse";
 import { useMarketNow } from "./MarketClock";
 
 export function GameScreen({ game }: { game: OddGame | null }) {
@@ -32,8 +33,11 @@ function GameBet({ game }: { game: OddGame }) {
     choose(game.id, { key: side, odd, phrase: phraseFor(game, side), competition: game.competition, when: game.when });
   }
 
+  const plays = [...(game.plays ?? [])].reverse();
+
   return (
     <section className="rounded-[18px] border border-line bg-card px-[18px] pt-4 pb-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+      <LivePulse games={[game]} />
       <Link href="/jogos" className="text-xs font-semibold text-muted">Voltar</Link>
       <div className="mt-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -47,9 +51,24 @@ function GameBet({ game }: { game: OddGame }) {
           </h1>
           <p className="mt-1 text-[13px] text-muted">{game.when}</p>
         </div>
-        {game.live ? <span className="rounded-full bg-accent px-2 py-1 text-xs font-semibold text-accent-ink">Ao vivo</span> : null}
+        {game.live ? <span className="shrink-0 rounded-full bg-accent px-2 py-1 text-xs font-semibold text-accent-ink">{liveLabel(game.clock)}</span> : null}
       </div>
-      {game.finished ? <p className="mt-5 text-[28px] font-bold tabular-nums">{game.score}</p> : day === "future" ? (
+      {game.live || game.finished ? (
+        <div className="mt-5">
+          <p className="text-[28px] font-bold tabular-nums">{game.score}</p>
+          <h2 className="mt-5 text-[15px] tracking-tight">Minuto a minuto</h2>
+          {plays.length === 0 ? <p className="mt-2 text-sm text-muted">Os lances aparecem aqui.</p> : (
+            <ol className="mt-2">
+              {plays.map((play, index) => (
+                <li key={`${play.minute}-${index}`} className="grid grid-cols-[44px_minmax(0,1fr)] gap-3 border-t border-line py-2.5">
+                  <span className="text-xs font-semibold text-accent tabular-nums">{play.minute || "–"}</span>
+                  <span className="text-sm leading-snug">{play.text}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      ) : day === "future" ? (
         <div className="mt-5">
           <div className="grid grid-cols-3 gap-2">
             {game.one != null ? <QuietOdd side="1" value={game.one} /> : null}

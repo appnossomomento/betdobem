@@ -11,7 +11,13 @@ export type ScorePick = {
   phrase: string;
 };
 
+export type LivePlay = {
+  minute: string;
+  text: string;
+};
+
 export type RoundCard = {
+  id: string;
   league: string;
   live: boolean;
   home: string;
@@ -21,6 +27,7 @@ export type RoundCard = {
   score: string;
   when: string;
   venue: string;
+  clock?: string;
 };
 
 export type OddGame = {
@@ -39,6 +46,8 @@ export type OddGame = {
   finished: boolean;
   score: string;
   kickoff: string;
+  clock?: string;
+  plays?: LivePlay[];
   scores: ScorePick[];
   both?: { yes: number; no: number };
 };
@@ -134,4 +143,10 @@ export function placarOdd(homeGoals: number, awayGoals: number) {
 
 export function placarPhrase(game: OddGame, homeGoals: number, awayGoals: number) {
   return `Placar ${game.home} ${homeGoals}–${awayGoals}`;
+}
+
+export function liveLabel(clock?: string) {
+  if (clock === "Intervalo" || clock === "Pênaltis") return clock;
+  if (clock) return `Ao vivo · ${clock}`;
+  return "Ao vivo";
 }
