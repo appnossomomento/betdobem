@@ -114,7 +114,7 @@ function MatchCard({ game, now, selected, onChoose }: { game: OddGame; now: numb
   const open = day === "today" && marketOpen(game.kickoff, now);
 
   return (
-    <article className="min-w-0 rounded-[18px] border border-line bg-card p-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] min-[880px]:p-4">
+    <article className={`min-w-0 rounded-[18px] border bg-card p-2.5 min-[880px]:p-4 ${live ? "border-[#d6f25c]/80 shadow-[0_0_16px_rgba(214,242,92,0.28)]" : "border-line shadow-[0_10px_28px_rgba(0,0,0,0.28)]"}`}>
       <div className="flex items-start justify-between gap-1.5">
         <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:text-xs">{game.competition}</span>
         <span className="flex shrink-0 flex-col items-end gap-1">
