@@ -9,7 +9,7 @@ export function PlacarToggle({ game }: { game: OddGame }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="col-span-3">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className={`flex w-full items-center justify-center rounded-lg px-2 py-1.5 text-[11px] font-semibold min-[880px]:text-xs ${open ? "bg-accent text-accent-ink" : "bg-card-2 text-ink"}`}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className={`flex w-full items-center justify-center rounded-lg px-2 py-1.5 text-xs font-semibold ${open ? "bg-accent text-accent-ink" : "bg-card-2 text-ink"}`}>
         Placar
       </button>
       <div className={`fold ${open ? "fold-open" : ""}`}>
@@ -42,7 +42,7 @@ function PlacarEntry({ game }: { game: OddGame }) {
           if (!marketOpen(game.kickoff)) return;
           choose(game.id, { key, odd, phrase: placarPhrase(game, homeGoals, awayGoals), competition: game.competition, when: game.when });
         }}
-        className={`shrink-0 rounded-lg px-2 py-1.5 text-xs font-bold tabular-nums ${on ? "bg-accent text-accent-ink" : "bg-card-2 text-accent"}`}
+        className={`shrink-0 rounded-lg px-2 py-1.5 text-sm font-bold tabular-nums min-[880px]:text-xs ${on ? "bg-accent text-accent-ink" : "bg-card-2 text-accent"}`}
       >
         {odd.toFixed(2)}
       </button>
@@ -59,7 +59,7 @@ function Goal({ label, value, onChange }: { label: string; value: string; onChan
         value={value}
         aria-label={`Gols de ${label}`}
         onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 2))}
-        className="mt-1 w-full rounded-lg bg-card-2 px-2 py-1.5 text-sm font-bold text-ink outline-none"
+        className="mt-1 w-full rounded-lg bg-card-2 px-2 py-1.5 text-base font-bold text-ink outline-none min-[880px]:text-sm"
       />
     </label>
   );

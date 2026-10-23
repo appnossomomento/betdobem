@@ -124,7 +124,7 @@ function MatchCard({ game, now, selected, onChoose }: { game: OddGame; now: numb
           <SideTeam name={game.home} logo={game.homeLogo} />
           <SideTeam name={game.away} logo={game.awayLogo} />
         </div>
-        {score ? <span className="text-sm font-bold tracking-tight tabular-nums min-[880px]:text-[22px]">{score}</span> : null}
+        {score ? <span className="text-base font-bold tracking-tight tabular-nums min-[880px]:text-[22px]">{score}</span> : null}
       </div>
       {open && game.one != null ? <p className="mt-2 text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:mt-3 min-[880px]:text-[11px]">Resultado final</p> : null}
       {day === "future" ? (
@@ -160,7 +160,7 @@ function FinishedCard({ game }: { game: OddGame }) {
           <SideTeam name={game.home} logo={game.homeLogo} muted />
           <SideTeam name={game.away} logo={game.awayLogo} muted />
         </div>
-        <span className="text-sm font-semibold tracking-tight text-muted tabular-nums min-[880px]:text-[22px]">{game.score}</span>
+        <span className="text-base font-semibold tracking-tight text-muted tabular-nums min-[880px]:text-[22px]">{game.score}</span>
       </div>
     </article>
   );
@@ -169,15 +169,15 @@ function FinishedCard({ game }: { game: OddGame }) {
 function SideTeam({ name, logo, muted }: { name: string; logo: string; muted?: boolean }) {
   return (
     <span className="flex min-w-0 items-center gap-1.5 py-0.5 min-[880px]:gap-2">
-      <img src={logo} alt="" className={`size-4 shrink-0 object-contain min-[880px]:size-6 ${muted ? "opacity-45 grayscale" : ""}`} />
-      <b className={`truncate text-xs min-[880px]:text-[15px] ${muted ? "font-medium text-muted" : "font-semibold"}`}>{name}</b>
+      <img src={logo} alt="" className={`size-5 shrink-0 object-contain min-[880px]:size-6 ${muted ? "opacity-45 grayscale" : ""}`} />
+      <b className={`truncate text-sm min-[880px]:text-[15px] ${muted ? "font-medium text-muted" : "font-semibold"}`}>{name}</b>
     </span>
   );
 }
 
 function QuietOdd({ side, value }: { side: Side; value: number }) {
   return (
-    <span className="rounded-lg bg-card-2 px-0.5 py-1.5 text-center text-xs font-bold text-accent tabular-nums min-[880px]:px-1 min-[880px]:py-2 min-[880px]:text-sm">
+    <span className="rounded-lg bg-card-2 px-0.5 py-1.5 text-center text-sm font-bold text-accent tabular-nums min-[880px]:px-1 min-[880px]:py-2">
       <small className="mb-0.5 block text-[10px] font-semibold text-muted">{side}</small>
       {value.toFixed(2)}
     </span>
@@ -186,7 +186,7 @@ function QuietOdd({ side, value }: { side: Side; value: number }) {
 
 function Odd({ side, value, on, onChoose }: { side: Side; value: number; on: boolean; onChoose: () => void }) {
   return (
-    <button type="button" aria-pressed={on} onClick={onChoose} className={`rounded-lg px-0.5 py-1.5 text-xs font-bold tabular-nums min-[880px]:px-1 min-[880px]:py-2 min-[880px]:text-sm ${on ? "bg-accent text-accent-ink" : "bg-card-2 text-accent"}`}>
+    <button type="button" aria-pressed={on} onClick={onChoose} className={`rounded-lg px-0.5 py-1.5 text-sm font-bold tabular-nums min-[880px]:px-1 min-[880px]:py-2 ${on ? "bg-accent text-accent-ink" : "bg-card-2 text-accent"}`}>
       <small className={`mb-0.5 block text-[10px] font-semibold ${on ? "text-accent-ink" : "text-muted"}`}>{side}</small>
       {value.toFixed(2)}
     </button>
