@@ -85,7 +85,7 @@ export function GamesScreen({ games }: { games: OddGame[] }) {
       {groups.map((group) => (
         <section key={group.key} className="flex flex-col gap-3" aria-label={group.key}>
           <h2 className="text-[15px] tracking-tight">{group.key}</h2>
-          <div className={`grid gap-3 ${group.key === "Ao vivo" ? "grid-cols-1" : "grid-cols-2 min-[880px]:grid-cols-3"}`}>
+          <div className="grid grid-cols-2 gap-3 min-[880px]:grid-cols-3">
             {group.games.map((game) => (
               <MatchCard key={game.id} game={game} now={now} selected={picks[game.id]?.key} onChoose={(side) => chooseSide(game, side)} />
             ))}
