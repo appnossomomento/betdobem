@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { leagueMarks, leagues, monthly, standingsFromHistory, viewer, weekly, type League, type LeagueVisibility, type RankRow } from "@/data/home";
+import { useRouter } from "next/navigation";
+import { createLeague as createLeagueAction, endLeague, joinLeague, leaveLeague as leaveLeagueAction, updateLeague } from "@/lib/leagues";
+import { leagueMarks, leagues as seedLeagues, standingsFromHistory, type League, type LeagueVisibility, type RankRow } from "@/data/home";
 import { Coin } from "./Icons";
 
 const monthName = new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -32,16 +34,23 @@ type LeagueDraft = {
 
 type Dialog = { kind: "create" } | { kind: "edit"; name: string } | { kind: "vip" } | null;
 
-export function RankingScreen() {
+export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLeagues = [], vip }: { weeklyRows: RankRow[]; monthlyRows: RankRow[]; initialLeagues: League[]; openLeagues?: League[]; vip: boolean }) {
   const [period, setPeriod] = useState<"Semanal" | "Mensal">("Semanal");
-  const [board, setBoard] = useState<League[]>(() => leagues.map((league) => ({ ...league, rows: league.rows.map((row) => ({ ...row })) })));
-  const [open, setOpen] = useState<string | null>(leagues[0]?.name ?? null);
+  const [board, setBoard] = useState<League[]>(() => initialLeagues.map((league) => ({ ...league, rows: league.rows.map((row) => ({ ...row })) })));
+  const [open, setOpen] = useState<string | null>(initialLeagues[0]?.name ?? null);
   const [dialog, setDialog] = useState<Dialog>(null);
-  const rows = period === "Semanal" ? weekly : monthly;
+  const rows = period === "Semanal" ? weeklyRows : monthlyRows;
   const you = rows.find((row) => row.you);
-  const weekYou = weekly.find((row) => row.you);
-  const monthYou = monthly.find((row) => row.you);
+  const weekYou = weeklyRows.find((row) => row.you);
+  const monthYou = monthlyRows.find((row) => row.you);
+  const router = useRouter();
+  const [leagueError, setLeagueError] = useState("");
+  const [code, setCode] = useState("");
   const editing = dialog?.kind === "edit" ? board.find((league) => league.name === dialog.name) : undefined;
+
+  useEffect(() => {
+    setBoard(initialLeagues.map((league) => ({ ...league, rows: league.rows.map((row) => ({ ...row })) })));
+  }, [initialLeagues]);
 
   useEffect(() => {
     if (!dialog) return;
@@ -53,43 +62,47 @@ export function RankingScreen() {
   }, [dialog]);
 
   function openCreate() {
-    setDialog(viewer.vip ? { kind: "create" } : { kind: "vip" });
+    setDialog(vip ? { kind: "create" } : { kind: "vip" });
   }
 
-  function createLeague(draft: LeagueDraft) {
-    const host = weekYou ?? you;
-    if (!host || board.length >= maxLeagues) return;
-    const createdAt = new Date().toISOString();
-    setBoard((current) => [
-      {
-        name: draft.name,
-        hosted: true,
-        prize: draft.prize || undefined,
-        photo: draft.photo,
-        duration: draft.duration,
-        playerCap: draft.playerCap,
-        visibility: draft.visibility,
-        createdAt,
-        history: [],
-        rows: [{ ...host, place: 1, points: 0 }],
-      },
-      ...current,
-    ]);
-    setOpen(draft.name);
+  async function createLeague(draft: LeagueDraft) {
+    if (board.length >= maxLeagues) return;
+    const result = await createLeagueAction(draft);
+    if (!result.ok) {
+      setLeagueError(result.error);
+      return;
+    }
     setDialog(null);
+    router.refresh();
   }
 
-  function saveLeague(draft: LeagueDraft) {
-    if (dialog?.kind !== "edit") return;
-    const previous = dialog.name;
-    setBoard((current) => current.map((league) => (league.name === previous ? { ...league, ...draft, prize: draft.prize || undefined } : league)));
-    setOpen(draft.name);
+  async function saveLeague(draft: LeagueDraft) {
+    if (dialog?.kind !== "edit" || !editing?.id) return;
+    const result = await updateLeague({ ...draft, id: editing.id });
+    if (!result.ok) {
+      setLeagueError(result.error);
+      return;
+    }
     setDialog(null);
+    router.refresh();
   }
 
-  function leaveLeague(name: string) {
-    setBoard((current) => current.filter((league) => league.name !== name));
+  async function leaveLeague(name: string) {
+    const league = board.find((item) => item.name === name);
+    if (league?.hosted && league.id) await endLeague(league.id);
+    else if (league?.id) await leaveLeagueAction(league.id);
     setOpen((current) => (current === name ? null : current));
+    router.refresh();
+  }
+
+  async function enterWithCode(event: FormEvent) {
+    event.preventDefault();
+    const result = await joinLeague({ code });
+    setLeagueError(result.ok ? "" : result.error);
+    if (result.ok) {
+      setCode("");
+      router.refresh();
+    }
   }
 
   return (
@@ -116,7 +129,8 @@ export function RankingScreen() {
                 <Coin />
                 {you.points}
               </span>
-              <p className="mt-1 text-xs text-muted">{period === "Semanal" ? `${monthYou?.place}º no mês` : `${weekYou?.place}º na semana`}</p>
+              {period === "Semanal" && monthYou ? <p className="mt-1 text-xs text-muted">{monthYou.place}º no mês</p> : null}
+              {period === "Mensal" && weekYou ? <p className="mt-1 text-xs text-muted">{weekYou.place}º na semana</p> : null}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 rounded-full bg-card-2 p-0.5" role="tablist" aria-label="Período">
@@ -134,7 +148,22 @@ export function RankingScreen() {
             ))}
           </div>
         </section>
-      ) : null}
+      ) : (
+        <div className="grid grid-cols-2 rounded-full bg-card-2 p-0.5" role="tablist" aria-label="Período">
+          {(["Semanal", "Mensal"] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              role="tab"
+              aria-selected={period === item}
+              onClick={() => setPeriod(item)}
+              className={`rounded-full py-1.5 text-sm font-semibold ${period === item ? "bg-accent text-accent-ink" : "text-muted"}`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
 
       <section aria-label={`Premiação de ${monthName}`}>
         <h2 className="mb-2 text-[15px] tracking-tight">Premiação de {monthName}</h2>
@@ -154,7 +183,7 @@ export function RankingScreen() {
           <h2 id="geral-titulo" className="mb-1 text-[15px] tracking-tight">Ranking geral</h2>
           <p className="mb-2 text-xs text-muted">{period}</p>
           <ol>
-            {rows.map((row) => (
+            {rows.length === 0 ? <li className="border-t border-line py-6 text-sm text-muted">Ninguém no ranking ainda</li> : rows.map((row) => (
               <RankItem key={`${period}-${row.place}-${row.initials}`} row={row} />
             ))}
           </ol>
@@ -167,7 +196,19 @@ export function RankingScreen() {
               Criar liga
             </button>
           </div>
+          <form onSubmit={enterWithCode} className="flex gap-2">
+            <input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} maxLength={6} aria-label="Código da liga" placeholder="Código" className="h-10 min-w-0 flex-1 rounded-lg bg-card px-3 text-sm font-semibold text-ink outline-none" />
+            <button type="submit" className="rounded-lg bg-card-2 px-3 text-sm font-semibold">Entrar</button>
+          </form>
+          {leagueError ? <p className="text-xs text-accent" role="status">{leagueError}</p> : null}
+          {openLeagues.map((league) => (
+            <article key={league.id} className="flex items-center justify-between gap-3 rounded-[18px] border border-line bg-card px-[18px] py-3">
+              <span className="truncate text-sm font-semibold">{league.name}</span>
+              <button type="button" onClick={async () => { const result = await joinLeague({ id: league.id }); setLeagueError(result.ok ? "" : result.error); if (result.ok) router.refresh(); }} className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink">Entrar</button>
+            </article>
+          ))}
 
+          {board.length === 0 ? <p className="text-sm text-muted">Nenhuma liga</p> : null}
           {board.map((league) => {
             const expanded = open === league.name;
             const table = league.history ? standingsFromHistory(league) : league.rows;
@@ -182,7 +223,7 @@ export function RankingScreen() {
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{league.name}</span>
-                    <span className="text-xs text-muted">{league.hosted ? "Você é o anfitrião" : "Você participa"}</span>
+                    <span className="text-xs text-muted">{league.hosted ? `Anfitrião${league.visibility === "privada" && league.id ? ` · ${league.id.replace(/-/g, "").slice(0, 6).toUpperCase()}` : ""}` : "Você participa"}</span>
                   </span>
                   {mine ? <span className="text-sm font-bold tabular-nums">{mine.place}º</span> : null}
                 </button>
@@ -284,10 +325,9 @@ function LeagueForm({ names, initial, onSubmit, onClose, onEnd }: { names: strin
         setError("A imagem precisa ser quase quadrada.");
         return;
       }
-      setPhoto((current) => {
-        if (current.startsWith("blob:") && current !== initial?.photo) URL.revokeObjectURL(current);
-        return url;
-      });
+      const reader = new FileReader();
+      reader.onload = () => setPhoto(String(reader.result));
+      reader.readAsDataURL(file);
       setError("");
     };
     img.onerror = () => {
@@ -402,6 +442,6 @@ function Avatar({ row }: { row: RankRow }) {
 
 function markFor(league: League) {
   if (league.hosted) return "linear-gradient(90deg, #1a2208 0 34%, #d6f25c 34% 67%, #6f8f2a 67% 100%)";
-  const index = leagues.findIndex((item) => item.name === league.name);
+  const index = seedLeagues.findIndex((item) => item.name === league.name);
   return leagueMarks[index] ?? leagueMarks[0];
 }

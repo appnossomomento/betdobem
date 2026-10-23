@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { champShort, champs, oddFor, phraseFor, type ChampFilter, type OddGame, type Side } from "@/data/home";
+import { champs, oddFor, phraseFor, type ChampFilter, type OddGame, type Side } from "@/data/home";
 import { useBet } from "./BetContext";
 
 const chipLabel: Record<ChampFilter, string> = {
@@ -35,7 +35,7 @@ export function GamesScreen({ games }: { games: OddGame[] }) {
   function chooseSide(game: OddGame, side: Side) {
     const odd = oddFor(game, side);
     if (odd == null) return;
-    choose(game.id, { key: side, odd, phrase: phraseFor(game, side) });
+    choose(game.id, { key: side, odd, phrase: phraseFor(game, side), competition: game.competition, when: game.when });
   }
 
   return (
@@ -89,7 +89,7 @@ function MatchCard({ game, selected, onChoose }: { game: OddGame; selected?: str
   return (
     <article className="min-w-0 rounded-[18px] border border-line bg-card p-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] min-[880px]:p-4">
       <div className="flex items-start justify-between gap-1.5">
-        <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:text-xs">{champShort[game.champ]}</span>
+        <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:text-xs">{game.competition}</span>
         <span className="flex shrink-0 flex-col items-end gap-1">
           {live ? <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-ink min-[880px]:px-2 min-[880px]:py-1 min-[880px]:text-xs">Ao vivo</span> : null}
           <span className="text-[10px] text-muted tabular-nums min-[880px]:text-xs">{game.when}</span>

@@ -1,7 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  redirects: async () => [{ source: "/entrar", destination: "/", permanent: false }],
+  headers: async () => [
+    {
+      source: "/:path*",
+      headers: [
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "X-Frame-Options", value: "DENY" },
+      ],
+    },
+  ],
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

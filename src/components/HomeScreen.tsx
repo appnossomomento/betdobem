@@ -1,16 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  champShort,
   champs,
   leagueMarks,
-  leagues,
-  monthly,
   oddFor,
   phraseFor,
-  weekly,
+  type League,
   type OddGame,
   type RankRow,
   type RoundCard,
@@ -19,7 +16,7 @@ import {
 import { useBet } from "./BetContext";
 import { Chevron, Coin } from "./Icons";
 
-export function HomeScreen({ games, cards }: { games: OddGame[]; cards: RoundCard[] }) {
+export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, poll = null }: { games: OddGame[]; cards: RoundCard[]; weeklyRows: RankRow[]; monthlyRows: RankRow[]; leagueRows: League[]; poll?: ReactNode }) {
   const { picks, choose } = useBet();
   const [period, setPeriod] = useState<"Semanal" | "Mensal">("Semanal");
   const [champ, setChamp] = useState(1);
@@ -28,7 +25,7 @@ export function HomeScreen({ games, cards }: { games: OddGame[]; cards: RoundCar
   const [leaguesOpen, setLeaguesOpen] = useState(false);
   const leftRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLElement>(null);
-  const rows = period === "Semanal" ? weekly : monthly;
+  const rows = period === "Semanal" ? weeklyRows : monthlyRows;
   const filter = champs[champ].id;
   const visible = filter === "todos" ? games : games.filter((game) => game.champ === filter);
 
@@ -55,12 +52,13 @@ export function HomeScreen({ games, cards }: { games: OddGame[]; cards: RoundCar
   function chooseSide(game: OddGame, side: Side) {
     const odd = oddFor(game, side);
     if (odd == null) return;
-    choose(game.id, { key: side, odd, phrase: phraseFor(game, side) });
+    choose(game.id, { key: side, odd, phrase: phraseFor(game, side), competition: game.competition, when: game.when });
   }
 
   return (
     <>
       <RoundStrip cards={cards} />
+      {poll}
 
       <div className="grid grid-cols-1 items-start gap-4 min-[880px]:grid-cols-[1.15fr_0.85fr]">
         <div ref={leftRef} className="order-2 flex flex-col gap-4 min-[880px]:order-1">
@@ -92,7 +90,7 @@ export function HomeScreen({ games, cards }: { games: OddGame[]; cards: RoundCar
               />
             </div>
             <ol>
-              {rows.map((row) => (
+              {rows.length === 0 ? <li className="border-t border-line py-6 text-sm text-muted">Ninguém no ranking ainda</li> : rows.map((row) => (
                 <RankItem key={`${period}-${row.place}-${row.initials}`} row={row} />
               ))}
             </ol>
@@ -103,7 +101,11 @@ export function HomeScreen({ games, cards }: { games: OddGame[]; cards: RoundCar
             index={league}
             open={leaguesOpen}
             onToggle={() => setLeaguesOpen((open) => !open)}
-            onCycle={(dir) => setLeague((current) => (current + dir + leagues.length) % leagues.length)}
+            leagues={leagueRows}
+            onCycle={(dir) => {
+              if (leagueRows.length === 0) return;
+              setLeague((current) => (current + dir + leagueRows.length) % leagueRows.length);
+            }}
           />
         </div>
 
@@ -127,7 +129,7 @@ export function HomeScreen({ games, cards }: { games: OddGame[]; cards: RoundCar
                   <div className="min-w-0">
                     <CrestName name={game.home} logo={game.homeLogo} />
                     <CrestName name={game.away} logo={game.awayLogo} />
-                    {filter === "todos" ? <p className="mt-1 text-xs text-muted">{champShort[game.champ]}</p> : null}
+                    {filter === "todos" ? <p className="mt-1 text-xs text-muted">{game.competition}</p> : null}
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
                     {game.one != null ? <OddButton side="1" value={game.one} selected={picks[game.id]?.key === "1"} onChoose={() => chooseSide(game, "1")} /> : null}
@@ -153,9 +155,13 @@ function RoundStrip({ cards }: { cards: RoundCard[] }) {
   useEffect(() => {
     const node = scroller.current;
     if (!node) return;
-    const card = node.children[1] as HTMLElement | undefined;
+    const card = node.children[0] as HTMLElement | undefined;
     if (!card) return;
-    node.scrollLeft = card.offsetLeft - (node.clientWidth - card.offsetWidth) / 2;
+    if (node.scrollWidth <= node.clientWidth + 1) {
+      node.scrollLeft = 0;
+      return;
+    }
+    node.scrollLeft = Math.max(0, card.offsetLeft - (node.clientWidth - card.offsetWidth) / 2);
   }, [cards]);
 
   function go(dir: number) {
@@ -205,11 +211,27 @@ function RoundStrip({ cards }: { cards: RoundCard[] }) {
   );
 }
 
-function LeagueBoard({ index, open, onToggle, onCycle }: { index: number; open: boolean; onToggle: () => void; onCycle: (dir: number) => void }) {
+function LeagueBoard({ leagues, index, open, onToggle, onCycle }: { leagues: League[]; index: number; open: boolean; onToggle: () => void; onCycle: (dir: number) => void }) {
   const league = leagues[index];
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null]);
   const [note, setNote] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  if (!league) {
+    return (
+      <section className="rounded-[18px] border border-line bg-card px-[18px] pt-4 pb-2 shadow-[0_10px_28px_rgba(0,0,0,0.28)]" aria-label="Ligas">
+        <button type="button" className="flex w-full items-center justify-between min-[880px]:hidden" aria-expanded={open} onClick={onToggle}>
+          <span className="text-[15px] tracking-tight">Ligas</span>
+          <span className={`text-muted ${open ? "rotate-180" : ""}`}>
+            <Chevron dir="down" />
+          </span>
+        </button>
+        <div className={open ? "max-[879px]:mt-4" : "hidden min-[880px]:block"}>
+          <h2 className="mb-4 hidden text-[15px] tracking-tight min-[880px]:block">Ligas</h2>
+          <p className="border-t border-line py-6 text-sm text-muted">Nenhuma liga</p>
+        </div>
+      </section>
+    );
+  }
   const photo = photos[index];
 
   function onFile(file: File | undefined) {

@@ -26,6 +26,7 @@ export type RoundCard = {
 export type OddGame = {
   id: string;
   champ: Champ;
+  competition: string;
   when: string;
   home: string;
   away: string;
@@ -60,6 +61,7 @@ export type LeagueCapitalEvent = {
 };
 
 export type League = {
+  id?: string;
   name: string;
   rows: RankRow[];
   hosted?: boolean;
@@ -85,21 +87,7 @@ export function standingsFromHistory(league: League): RankRow[] {
     .map((row, index) => ({ ...row, place: index + 1 }));
 }
 
-export const viewer = { vip: true };
-
-const people = {
-  ma: { initials: "MA", name: "Marina", you: true, color: "#d6f25c", ink: "#1a2208" },
-  lu: { initials: "LU", name: "Lucas", color: "#8eb6ff", ink: "#102033" },
-  an: { initials: "AN", name: "Ana", color: "#f2a0c0", ink: "#3a1020" },
-  ra: { initials: "RA", name: "Rafa", color: "#f0c36a", ink: "#2a1c08" },
-  ca: { initials: "CA", name: "Caio", color: "#8fd0b5", ink: "#102820" },
-  bi: { initials: "BI", name: "Bia", color: "#c4a6f5", ink: "#241433" },
-  th: { initials: "TH", name: "Theo", color: "#f0a07a", ink: "#2a140c" },
-} as const;
-
-function row(place: number, who: keyof typeof people, points: number): RankRow {
-  return { place, points, ...people[who] };
-}
+export const viewer = { vip: false };
 
 export const champs: { id: ChampFilter; label: string }[] = [
   { id: "todos", label: "Todos" },
@@ -114,15 +102,11 @@ export const champShort: Record<Champ, string> = {
   libertadores: "Libertadores",
 };
 
-export const weekly: RankRow[] = [row(1, "ma", 186), row(2, "lu", 174), row(3, "an", 161), row(4, "ra", 149), row(5, "ca", 138)];
+export const weekly: RankRow[] = [];
 
-export const monthly: RankRow[] = [row(1, "an", 640), row(2, "ma", 612), row(3, "lu", 588), row(4, "ca", 501), row(5, "ra", 477)];
+export const monthly: RankRow[] = [];
 
-export const leagues: League[] = [
-  { name: "Resenha de quinta", rows: [row(1, "ma", 186), row(2, "lu", 174), row(3, "an", 161), row(4, "ra", 149), row(5, "ca", 138)] },
-  { name: "Os de casa", rows: [row(1, "an", 210), row(2, "ma", 198), row(3, "lu", 181), row(4, "ra", 160), row(5, "ca", 144)] },
-  { name: "Galera do trabalho", rows: [row(3, "bi", 156), row(4, "ra", 149), row(5, "ma", 141), row(6, "th", 133), row(7, "ca", 120)] },
-];
+export const leagues: League[] = [];
 
 export const leagueMarks = [
   "linear-gradient(90deg, #1a2208 0 34%, #d6f25c 34% 67%, #6f8f2a 67% 100%)",

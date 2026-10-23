@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
-import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -10,16 +9,14 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "BETdoBEM — Início",
-  description: "Home do BETdoBEM",
+  title: "BETdoBEM",
+  description: "BETdoBEM",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${outfit.variable} h-full antialiased`}>
-      <body className="min-h-full font-sans">
-        <AppShell>{children}</AppShell>
-      </body>
+      <body className="min-h-full font-sans">{children}</body>
     </html>
   );
 }

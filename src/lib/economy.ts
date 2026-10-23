@@ -1,8 +1,9 @@
-/** Valor provisório até o fundador fechar o marco zero. UI histórica: 186. */
-export const MARCO_ZERO_COINS = 186;
+/** Banca inicial e valor do reset de terça-feira, 01h00. */
+export const MARCO_ZERO_COINS = 50;
 
 export const ZONE = "America/Sao_Paulo";
 
+/** Mesma chave do SQL: `to_char(..., '"W"IW-IYYY')` → `W43-2026`. Semana ISO do calendário de São Paulo. */
 export function weekKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: ZONE,
@@ -14,9 +15,12 @@ export function weekKey(date = new Date()) {
   const month = Number(parts.find((part) => part.type === "month")?.value);
   const day = Number(parts.find((part) => part.type === "day")?.value);
   const utc = new Date(Date.UTC(year, month - 1, day));
-  const oneJan = new Date(Date.UTC(year, 0, 1));
-  const week = Math.ceil((((utc.getTime() - oneJan.getTime()) / 86400000) + oneJan.getUTCDay() + 1) / 7);
-  return `${year}-W${String(week).padStart(2, "0")}`;
+  const dayNum = utc.getUTCDay() || 7;
+  utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+  const isoYear = utc.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+  const week = Math.ceil(((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `W${String(week).padStart(2, "0")}-${isoYear}`;
 }
 
 export function monthKey(date = new Date()) {

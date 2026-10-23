@@ -1,27 +1,34 @@
-import { cacheLife } from "next/cache";
+import { connection } from "next/server";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Champ, OddGame, RoundCard } from "@/data/home";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const zone = "America/Sao_Paulo";
 const freshFor = 12 * 60 * 60 * 1000;
-const leagues: { slug: string; champ: Champ }[] = [
-  { slug: "bra.1", champ: "brasileiro" },
-  { slug: "conmebol.libertadores", champ: "libertadores" },
+const leagues: { slug: string; champ: Champ; label: string }[] = [
+  { slug: "bra.1", champ: "brasileiro", label: "Brasileirão" },
+  { slug: "conmebol.libertadores", champ: "libertadores", label: "Libertadores" },
+  { slug: "bra.camp.paulista", champ: "estadual", label: "Paulista" },
+  { slug: "bra.camp.carioca", champ: "estadual", label: "Carioca" },
+  { slug: "bra.camp.mineiro", champ: "estadual", label: "Mineiro" },
+  { slug: "bra.camp.gaucho", champ: "estadual", label: "Gaúcho" },
 ];
+
+/** No escopo, sem slug no placar gratuito: Pernambucano, Goiano, Catarinense, Baiano, Cearense, Potiguar. */
 
 type Payload = { games: OddGame[]; cards: RoundCard[] };
 type CacheFile = Payload & { savedAt: number };
 
 export async function getRound(): Promise<Payload> {
-  "use cache";
-  cacheLife("hours");
+  await connection();
   return loadRound();
 }
 
 async function loadRound(): Promise<Payload> {
-  const cached = await readCache();
-  if (cached && Date.now() - cached.savedAt < freshFor) return { games: cached.games, cards: cached.cards };
+  const cached = (await readCache()) ?? (await readRemote());
+  const maxAge = cached?.games.some((game) => game.live) ? 10 * 60 * 1000 : freshFor;
+  if (cached && Date.now() - cached.savedAt < maxAge) return { games: cached.games, cards: cached.cards };
 
   try {
     const start = saoPauloDay(new Date());
@@ -34,14 +41,16 @@ async function loadRound(): Promise<Payload> {
         for (const game of rows) {
           if (seen.has(game.id) || saoPauloDay(new Date(game.kickoff)) < start) continue;
           seen.add(game.id);
-          games.push({ ...game, champ: league.champ });
+          games.push({ ...game, champ: league.champ, competition: league.label });
         }
       }
     }
     games.sort(byKickoff);
     const cards = games.slice(0, 6).map(toCard);
     const payload = { games, cards };
-    await writeCache({ ...payload, savedAt: Date.now() });
+    const stamped = { ...payload, savedAt: Date.now() };
+    await writeCache(stamped);
+    await writeRemote(stamped);
     return payload;
   } catch (error) {
     console.error(error);
@@ -70,6 +79,7 @@ function toGame(event: EspnEvent): OddGame | null {
   return {
     id: String(event.id),
     champ: "brasileiro",
+    competition: "Brasileirão",
     when: whenLabel(event.date, live),
     home: home.team.displayName,
     away: away.team.displayName,
@@ -87,7 +97,7 @@ function toGame(event: EspnEvent): OddGame | null {
 
 function toCard(game: OddGame): RoundCard {
   return {
-    league: game.champ === "libertadores" ? "Libertadores" : "Brasileirão",
+    league: game.competition,
     live: game.live,
     home: game.home,
     away: game.away,
@@ -132,6 +142,27 @@ function shiftDay(day: string, days: number) {
   const [year, month, date] = day.split("-").map(Number);
   const next = new Date(Date.UTC(year, month - 1, date + days));
   return next.toISOString().slice(0, 10);
+}
+
+async function readRemote(): Promise<CacheFile | null> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("fixtures_cache").select("payload, saved_at").eq("id", "round").maybeSingle();
+    if (!data?.payload) return null;
+    const payload = data.payload as Payload;
+    return { games: payload.games ?? [], cards: payload.cards ?? [], savedAt: Date.parse(data.saved_at) };
+  } catch {
+    return null;
+  }
+}
+
+async function writeRemote(payload: CacheFile) {
+  try {
+    const admin = createAdminClient();
+    await admin.from("fixtures_cache").upsert({ id: "round", payload, saved_at: new Date(payload.savedAt).toISOString() });
+  } catch {
+    return;
+  }
 }
 
 async function readCache(): Promise<CacheFile | null> {

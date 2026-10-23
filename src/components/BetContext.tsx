@@ -1,22 +1,32 @@
 "use client";
 
-import { createContext, useContext, useMemo, useReducer, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { placeBet, type PlaceResult } from "@/lib/place";
+import { clearSlip, readSlip, saveSlip } from "@/lib/slip-store";
 
-export type Selection = { key: string; odd: number; phrase: string };
+export type Selection = { key: string; odd: number; phrase: string; competition?: string; when?: string };
 
 type State = { picks: Record<string, Selection>; order: string[] };
 
 type BetContextValue = State & {
   balance: number;
+  signedIn: boolean;
   choose: (gameId: string, selection: Selection) => void;
-  place: (stake: number) => number | null;
+  remove: (gameId: string) => void;
+  place: (stake: number) => Promise<PlaceResult | null>;
   slip: { text: string; odd: string; multi: boolean; idle: boolean };
 };
 
 const BetContext = createContext<BetContextValue | null>(null);
 
-function reducer(state: State, action: { type: "choose"; gameId: string; selection: Selection } | { type: "clear" }): State {
+function reducer(state: State, action: { type: "choose"; gameId: string; selection: Selection } | { type: "clear" } | { type: "remove"; gameId: string } | { type: "hydrate"; picks: State["picks"]; order: string[] }): State {
+  if (action.type === "hydrate") return { picks: action.picks, order: action.order };
   if (action.type === "clear") return { picks: {}, order: [] };
+  if (action.type === "remove") {
+    const picks = { ...state.picks };
+    delete picks[action.gameId];
+    return { picks, order: state.order.filter((id) => id !== action.gameId) };
+  }
   const current = state.picks[action.gameId];
   if (current?.key === action.selection.key) {
     const picks = { ...state.picks };
@@ -29,23 +39,36 @@ function reducer(state: State, action: { type: "choose"; gameId: string; selecti
   };
 }
 
-export function BetProvider({ children }: { children: React.ReactNode }) {
+export function BetProvider({ children, initialBalance }: { children: React.ReactNode; initialBalance: number | null }) {
   const [state, dispatch] = useReducer(reducer, { picks: {}, order: [] });
-  const [balance, setBalance] = useState(186);
+  const [balance, setBalance] = useState(initialBalance ?? 0);
+  const signedIn = initialBalance != null;
+  const skipSave = useRef(true);
 
-  function place(stake: number) {
-    const cents = Math.round(stake * 100);
-    if (cents < 100 || state.order.length === 0) return null;
-    let left: number | null = null;
-    setBalance((current) => {
-      const have = Math.round(current * 100);
-      if (cents > have) return current;
-      left = (have - cents) / 100;
-      return left;
-    });
-    if (left == null) return null;
-    dispatch({ type: "clear" });
-    return left;
+  useEffect(() => {
+    const saved = readSlip();
+    if (saved?.order.length) dispatch({ type: "hydrate", picks: saved.picks, order: saved.order });
+  }, []);
+
+  useEffect(() => {
+    if (skipSave.current) {
+      skipSave.current = false;
+      return;
+    }
+    if (state.order.length === 0) clearSlip();
+    else saveSlip({ picks: state.picks, order: state.order });
+  }, [state]);
+
+  async function place(stake: number) {
+    if (!signedIn || state.order.length === 0) return null;
+    const legs = state.order.map((id) => ({ fixtureId: id, key: state.picks[id].key, odd: state.picks[id].odd }));
+    const result = await placeBet(stake, legs);
+    if (result.ok) {
+      setBalance(result.balance);
+      dispatch({ type: "clear" });
+      clearSlip();
+    }
+    return result;
   }
 
   const slip = useMemo(() => {
@@ -61,11 +84,13 @@ export function BetProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...state,
       balance,
+      signedIn,
       slip,
       choose: (gameId, selection) => dispatch({ type: "choose", gameId, selection }),
+      remove: (gameId) => dispatch({ type: "remove", gameId }),
       place,
     }),
-    [state, slip, balance],
+    [state, slip, balance, signedIn],
   );
 
   return <BetContext.Provider value={value}>{children}</BetContext.Provider>;

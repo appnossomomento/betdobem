@@ -1,5 +1,5 @@
 -- BETdoBEM — schema inicial
--- Marco zero provisório: constante da app (186) até o fundador fechar o valor.
+-- Marco zero: 50 moedas no cadastro e no reset de terça-feira, 01h00 (America/Sao_Paulo).
 
 create extension if not exists "pgcrypto";
 
@@ -140,7 +140,7 @@ begin
   values (new.id, raw_name, initials)
   on conflict (id) do nothing;
   insert into public.ledger (user_id, kind, amount, week_key)
-  values (new.id, 'marco_zero', 186, to_char(timezone('America/Sao_Paulo', now()), '"W"IW-IYYY'));
+  values (new.id, 'marco_zero', 50, to_char(timezone('America/Sao_Paulo', now()), '"W"IW-IYYY'));
   return new;
 end;
 $$;
