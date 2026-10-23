@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "BETdoBEM",
     short_name: "BETdoBEM",
-    description: "BETdoBEM",
+    description: "Proteja sua banca de moedas fictícias, com reset de patrimônio a cada semana e odds atualizadas!",
     start_url: "/?origem=pwa",
     scope: "/",
     display: "standalone",

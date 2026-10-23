@@ -53,20 +53,21 @@ export function LeagueScreen({ league, member, invite, signedIn, acceptOnLoad }:
   async function share() {
     if (!league.id) return;
     const code = leagueCode(league.id);
-    const text = `Entra na liga ${league.name} no BETdoBEM. Código: ${code}`;
+    const url = `${window.location.origin}/liga/${league.id}?convite=1`;
+    const text = `Entra na liga ${league.name}. Código: ${code}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: league.name, text });
+        await navigator.share({ title: "BETdoBEM - Projeta seu Patrimônio!", text, url });
         return;
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
     }
     try {
-      await navigator.clipboard.writeText(code);
-      setMessage("Código copiado.");
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setMessage("Link copiado.");
     } catch {
-      setMessage(code);
+      setMessage(url);
     }
   }
 

@@ -10,21 +10,23 @@ const outfit = Outfit({
 });
 
 const tabTitle = "BETdoBEM - Projeta seu Patrimônio!";
+const shareText = "Proteja sua banca de moedas fictícias, com reset de patrimônio a cada semana e odds atualizadas!";
 
 const shareImage = "https://betdobem.vercel.app/logo-bet-do-bem/logo-share.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://betdobem.vercel.app"),
   title: { default: tabTitle, template: "%s" },
-  description: "BETdoBEM",
+  description: shareText,
   openGraph: {
     title: tabTitle,
-    description: "BETdoBEM",
+    description: shareText,
     images: [{ url: shareImage, width: 1678, height: 937, alt: tabTitle }],
   },
   twitter: {
     card: "summary_large_image",
     title: tabTitle,
+    description: shareText,
     images: [shareImage],
   },
   applicationName: "BETdoBEM",

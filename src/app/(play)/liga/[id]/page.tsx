@@ -5,7 +5,10 @@ import { LeagueScreen } from "@/components/LeagueScreen";
 import { getAccount } from "@/lib/account";
 import { loadLeague, loadLeaguePreview } from "@/lib/social";
 
-export const metadata: Metadata = { title: "BETdoBEM — Liga", description: "Página da liga no BETdoBEM" };
+export const metadata: Metadata = {
+  title: "BETdoBEM — Liga",
+  description: "Proteja sua banca de moedas fictícias, com reset de patrimônio a cada semana e odds atualizadas!",
+};
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
