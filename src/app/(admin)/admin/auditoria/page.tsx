@@ -43,6 +43,7 @@ function summary(item: Audit, nameOf: (id: string | null) => string) {
   if (item.action === "ajuste") return `${who} ajustou ${payload.amount ?? ""} moedas de ${target}`;
   if (item.action === "poll") return `${who} criou a enquete “${payload.question ?? ""}”`;
   if (item.action === "notice") return `${who} enviou o aviso “${payload.title ?? ""}” para ${payload.sent ?? 0}`;
+  if (item.action === "push") return `${who} disparou o push “${payload.kind === "partidas_iniciando" ? "Partidas iniciando" : "Mercado aberto"}” para ${payload.sent ?? 0} aparelhos`;
   return `${who} · ${item.action}`;
 }
 

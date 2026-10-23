@@ -36,9 +36,10 @@ export function firebasePublic() {
   return { apiKey, authDomain, projectId, messagingSenderId, appId, vapidKey };
 }
 
-export async function dispatchKind(kind: PushKind) {
+export async function dispatchKind(kind: PushKind, manual = false) {
   const account = firebaseAccount();
   const day = saoPauloDay(Date.now());
+  const deliveryKind = manual ? `manual-${kind}-${Date.now()}` : kind;
   if (!account) return { ok: true as const, skipped: "firebase" as const, sent: 0 };
   const admin = createAdminClient();
   const board = await readBoard();
@@ -50,16 +51,16 @@ export async function dispatchKind(kind: PushKind) {
   let sent = 0;
   for (const row of targets) {
     const token = row.token as string;
-    const { error: logged } = await admin.from("push_deliveries").insert({ kind, day, token, status: "sent" });
+    const { error: logged } = await admin.from("push_deliveries").insert({ kind: deliveryKind, day, token, status: "sent" });
     if (logged) continue;
-    const result = await send(account, access, token, kind, day);
+    const result = await send(account, access, token, kind, deliveryKind);
     if (result === "drop") {
       await admin.from("push_subscriptions").delete().eq("token", token);
-      await admin.from("push_deliveries").update({ status: "dropped" }).eq("kind", kind).eq("day", day).eq("token", token);
+      await admin.from("push_deliveries").update({ status: "dropped" }).eq("kind", deliveryKind).eq("day", day).eq("token", token);
       continue;
     }
     if (result === "fail") {
-      await admin.from("push_deliveries").update({ status: "failed" }).eq("kind", kind).eq("day", day).eq("token", token);
+      await admin.from("push_deliveries").update({ status: "failed" }).eq("kind", deliveryKind).eq("day", day).eq("token", token);
       continue;
     }
     sent += 1;
@@ -67,7 +68,7 @@ export async function dispatchKind(kind: PushKind) {
   return { ok: true as const, skipped: null, sent };
 }
 
-async function send(account: ServiceAccount, access: string, token: string, kind: PushKind, day: string) {
+async function send(account: ServiceAccount, access: string, token: string, kind: PushKind, tag: string) {
   const message = copy[kind];
   const response = await fetch(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`, {
     method: "POST",
@@ -75,7 +76,7 @@ async function send(account: ServiceAccount, access: string, token: string, kind
     body: JSON.stringify({
       message: {
         token,
-        data: { title: message.title, body: message.body, url: "/jogos", tag: `${kind}-${day}` },
+        data: { title: message.title, body: message.body, url: "/jogos", tag },
       },
     }),
   });

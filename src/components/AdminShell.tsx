@@ -7,6 +7,7 @@ const links = [
   ["Segmentos", "/admin/segmentos"],
   ["Enquetes", "/admin/enquetes"],
   ["Avisos", "/admin/avisos"],
+  ["Push", "/admin/push"],
   ["Auditoria", "/admin/auditoria"],
 ];
 

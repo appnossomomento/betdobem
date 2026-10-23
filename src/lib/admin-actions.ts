@@ -7,6 +7,7 @@ import { loadDirectory, matches } from "@/lib/admin-data";
 import { weekKey } from "@/lib/economy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { dispatchKind, type PushKind } from "@/lib/push";
 
 async function adminId() {
   const supabase = await createClient();
@@ -123,6 +124,16 @@ export async function sendNotice(input: { title: string; body: string; segmentId
   await audit(actor, "notice", null, { title: input.title.trim(), sent: recipients.length });
   revalidatePath("/admin/avisos");
   return { ok: true as const, sent: recipients.length };
+}
+
+export async function sendPush(kind: PushKind) {
+  const actor = await adminId();
+  if (!actor || (kind !== "mercado_aberto" && kind !== "partidas_iniciando")) return { ok: false as const, sent: 0 };
+  const result = await dispatchKind(kind, true);
+  await audit(actor, "push", null, { kind, sent: result.sent });
+  revalidatePath("/admin/push");
+  revalidatePath("/admin/auditoria");
+  return { ok: true as const, sent: result.sent, skipped: result.skipped };
 }
 
 async function audit(adminIdValue: string, action: string, targetUserId: string | null, payload: Record<string, string | number | boolean | null>) {
