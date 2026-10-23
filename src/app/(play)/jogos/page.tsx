@@ -4,7 +4,7 @@ import { GamesScreen } from "@/components/GamesScreen";
 import { getRound } from "@/lib/round";
 
 export const metadata: Metadata = {
-  title: "BETdoBEM — Jogos",
+  title: { absolute: "Bet do Bem - Proteja seu patrimônio" },
   description: "Jogos da rodada no BETdoBEM",
 };
 
