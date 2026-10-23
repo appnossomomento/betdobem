@@ -28,7 +28,7 @@ const presets = [
 const every = ["Todo domingo", "Toda segunda", "Toda terça", "Toda quarta", "Toda quinta", "Toda sexta", "Todo sábado"];
 const field = "mt-1 h-10 w-full rounded-lg bg-card-2 px-3 text-sm outline-none";
 
-export function PushDesk({ ready, morning, kickoff, plans }: { ready: number; morning: boolean; kickoff: boolean; plans: Plan[] }) {
+export function PushDesk({ morning, kickoff, plans }: { morning: boolean; kickoff: boolean; plans: Plan[] }) {
   const router = useRouter();
   const [pending, setPending] = useState("");
   const [note, setNote] = useState("");
@@ -81,7 +81,7 @@ export function PushDesk({ ready, morning, kickoff, plans }: { ready: number; mo
 
   return (
     <div className="mt-4 flex flex-col gap-6">
-      <p className="text-sm text-muted">{ready === 1 ? "1 aparelho com notificação ligada." : `${ready} aparelhos com notificação ligada.`} Conta suspensa fica de fora. Disparar agora sai na hora. O relógio deste plano passa à 00:00 e às 08:00, horário de São Paulo, e um horário marcado sai se essa passagem cair em até 10 minutos dele.</p>
+      <p className="text-sm text-muted">Conta suspensa fica de fora. Disparar agora sai na hora. O relógio passa à 00:00 e às 08:00, horário de São Paulo, e um horário marcado sai se essa passagem cair em até 10 minutos dele.</p>
 
       <section>
         <h2 className="text-base">Regras do mercado</h2>
