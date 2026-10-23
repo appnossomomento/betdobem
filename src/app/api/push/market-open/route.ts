@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
-import { dispatchKind } from "@/lib/push";
-import { saoPauloHour } from "@/lib/market";
-import { getRound } from "@/lib/round";
-import { kickoffDay } from "@/lib/market";
+import { sendMorningIfDue } from "@/lib/push-clock";
 
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ ok: false }, { status: 401 });
-  if (saoPauloHour() < 8) return NextResponse.json({ ok: true, skipped: "cedo" });
-  const round = await getRound();
-  const today = round.games.some((game) => !game.finished && kickoffDay(game.kickoff) === "today");
-  if (!today) return NextResponse.json({ ok: true, skipped: "dia" });
-  const result = await dispatchKind("mercado_aberto");
-  return NextResponse.json(result);
+  return NextResponse.json(await sendMorningIfDue());
 }
 
 export async function POST(request: Request) {

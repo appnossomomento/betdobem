@@ -37,9 +37,19 @@ export function firebasePublic() {
 }
 
 export async function dispatchKind(kind: PushKind, manual = false) {
-  const account = firebaseAccount();
+  const message = copy[kind];
   const day = saoPauloDay(Date.now());
   const deliveryKind = manual ? `manual-${kind}-${Date.now()}` : kind;
+  return dispatchJob({ title: message.title, body: message.body, deliveryKind, tag: manual ? deliveryKind : `${kind}-${day}` });
+}
+
+export async function dispatchText(title: string, body: string, deliveryKind: string) {
+  return dispatchJob({ title, body, deliveryKind, tag: deliveryKind });
+}
+
+async function dispatchJob(job: { title: string; body: string; deliveryKind: string; tag: string }) {
+  const account = firebaseAccount();
+  const day = saoPauloDay(Date.now());
   if (!account) return { ok: true as const, skipped: "firebase" as const, sent: 0 };
   const admin = createAdminClient();
   const board = await readBoard();
@@ -51,16 +61,16 @@ export async function dispatchKind(kind: PushKind, manual = false) {
   let sent = 0;
   for (const row of targets) {
     const token = row.token as string;
-    const { error: logged } = await admin.from("push_deliveries").insert({ kind: deliveryKind, day, token, status: "sent" });
+    const { error: logged } = await admin.from("push_deliveries").insert({ kind: job.deliveryKind, day, token, status: "sent" });
     if (logged) continue;
-    const result = await send(account, access, token, kind, deliveryKind);
+    const result = await send(account, access, token, job);
     if (result === "drop") {
       await admin.from("push_subscriptions").delete().eq("token", token);
-      await admin.from("push_deliveries").update({ status: "dropped" }).eq("kind", deliveryKind).eq("day", day).eq("token", token);
+      await admin.from("push_deliveries").update({ status: "dropped" }).eq("kind", job.deliveryKind).eq("day", day).eq("token", token);
       continue;
     }
     if (result === "fail") {
-      await admin.from("push_deliveries").update({ status: "failed" }).eq("kind", deliveryKind).eq("day", day).eq("token", token);
+      await admin.from("push_deliveries").update({ status: "failed" }).eq("kind", job.deliveryKind).eq("day", day).eq("token", token);
       continue;
     }
     sent += 1;
@@ -68,15 +78,14 @@ export async function dispatchKind(kind: PushKind, manual = false) {
   return { ok: true as const, skipped: null, sent };
 }
 
-async function send(account: ServiceAccount, access: string, token: string, kind: PushKind, tag: string) {
-  const message = copy[kind];
+async function send(account: ServiceAccount, access: string, token: string, job: { title: string; body: string; tag: string }) {
   const response = await fetch(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`, {
     method: "POST",
     headers: { authorization: `Bearer ${access}`, "content-type": "application/json" },
     body: JSON.stringify({
       message: {
         token,
-        data: { title: message.title, body: message.body, url: "/jogos", tag },
+        data: { title: job.title, body: job.body, url: "/jogos", tag: job.tag },
       },
     }),
   });

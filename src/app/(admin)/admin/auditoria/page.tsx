@@ -43,8 +43,16 @@ function summary(item: Audit, nameOf: (id: string | null) => string) {
   if (item.action === "ajuste") return `${who} ajustou ${payload.amount ?? ""} moedas de ${target}`;
   if (item.action === "poll") return `${who} criou a enquete “${payload.question ?? ""}”`;
   if (item.action === "notice") return `${who} enviou o aviso “${payload.title ?? ""}” para ${payload.sent ?? 0}`;
-  if (item.action === "push") return `${who} disparou o push “${payload.kind === "partidas_iniciando" ? "Partidas iniciando" : "Mercado aberto"}” para ${payload.sent ?? 0} aparelhos`;
+  if (item.action === "push") return `${who} disparou o push “${pushName(payload.kind)}” para ${payload.sent ?? 0} aparelhos`;
+  if (item.action === "push_rule") return `${who} ${payload.morning ? "ligou" : "desligou"} o push das 8h e ${payload.kickoff ? "ligou" : "desligou"} o push do apito`;
+  if (item.action === "push_plan") return `${who} agendou o push “${payload.title ?? ""}”`;
   return `${who} · ${item.action}`;
+}
+
+function pushName(kind: string | number | boolean | null | undefined) {
+  if (kind === "mercado_aberto") return "Mercado aberto";
+  if (kind === "partidas_iniciando") return "Partidas iniciando";
+  return String(kind ?? "Push");
 }
 
 function when(value: string) {

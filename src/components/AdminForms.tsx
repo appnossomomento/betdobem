@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { closePoll, createPoll, previewSegment, saveSegment, sendNotice, sendPush } from "@/lib/admin-actions";
+import { closePoll, createPoll, previewSegment, saveSegment, sendNotice } from "@/lib/admin-actions";
 import { TEAMS } from "@/lib/profile-fields";
 import type { Segment } from "@/lib/admin-store";
 
@@ -115,41 +115,6 @@ export function PollForm({ segments }: { segments: Segment[] }) {
 export function ClosePoll({ id }: { id: string }) {
   const router = useRouter();
   return <button type="button" onClick={async () => { await closePoll(id); router.refresh(); }} className="text-xs font-semibold text-[#c4292e]">Encerrar</button>;
-}
-
-const pushes = [
-  { kind: "mercado_aberto" as const, title: "Mercado aberto", body: "Faça suas apostas." },
-  { kind: "partidas_iniciando" as const, title: "Partidas iniciando", body: "Faça suas apostas para não perder a rodada." },
-];
-
-export function PushButtons() {
-  const [pending, setPending] = useState("");
-  const [message, setMessage] = useState("");
-
-  async function fire(kind: (typeof pushes)[number]["kind"], title: string) {
-    setPending(kind);
-    const result = await sendPush(kind);
-    setPending("");
-    if (!result.ok) {
-      setMessage("Não foi possível.");
-      return;
-    }
-    const aparelhos = result.sent === 1 ? "1 aparelho" : `${result.sent} aparelhos`;
-    setMessage(result.skipped === "firebase" ? "O Firebase não está configurado neste servidor." : `${title} enviado para ${aparelhos}.`);
-  }
-
-  return (
-    <div className="mt-4 grid gap-3">
-      {pushes.map((item) => (
-        <button key={item.kind} type="button" disabled={pending !== ""} onClick={() => fire(item.kind, item.title)} className="rounded-2xl border border-line bg-card p-4 text-left disabled:opacity-60">
-          <span className="block text-base font-semibold">{item.title}</span>
-          <span className="mt-1 block text-sm text-muted">{item.body}</span>
-          <span className="mt-3 inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-bold text-accent-ink">{pending === item.kind ? "Enviando…" : "Disparar"}</span>
-        </button>
-      ))}
-      {message ? <p className="text-sm text-accent" role="status">{message}</p> : null}
-    </div>
-  );
 }
 
 export function NoticeForm({ segments }: { segments: Segment[] }) {

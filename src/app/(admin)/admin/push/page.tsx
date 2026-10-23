@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { PushButtons } from "@/components/AdminForms";
+import { PushDesk } from "@/components/PushDesk";
+import { readBoard } from "@/lib/admin-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default function AdminPushPage() {
@@ -11,14 +12,14 @@ export default function AdminPushPage() {
 }
 
 async function PushBody() {
-  const admin = createAdminClient();
-  const { count } = await admin.from("push_subscriptions").select("id", { count: "exact", head: true });
-  const ready = count ?? 0;
+  const [board, count] = await Promise.all([
+    readBoard(),
+    createAdminClient().from("push_subscriptions").select("id", { count: "exact", head: true }),
+  ]);
   return (
     <div>
       <h1 className="text-xl">Push</h1>
-      <p className="mt-2 text-sm text-muted">{ready === 1 ? "1 aparelho com notificação ligada." : `${ready} aparelhos com notificação ligada.`} Conta suspensa fica de fora.</p>
-      <PushButtons />
+      <PushDesk ready={count.count ?? 0} morning={board.pushRules.morning} kickoff={board.pushRules.kickoff} plans={board.pushPlans} />
     </div>
   );
 }

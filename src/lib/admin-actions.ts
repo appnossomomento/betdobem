@@ -7,7 +7,9 @@ import { loadDirectory, matches } from "@/lib/admin-data";
 import { weekKey } from "@/lib/economy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { dispatchKind, type PushKind } from "@/lib/push";
+import { dispatchKind, dispatchText, type PushKind } from "@/lib/push";
+import { nextRun } from "@/lib/push-when";
+import type { PushMode, PushRules } from "@/lib/admin-store";
 
 async function adminId() {
   const supabase = await createClient();
@@ -134,6 +136,97 @@ export async function sendPush(kind: PushKind) {
   revalidatePath("/admin/push");
   revalidatePath("/admin/auditoria");
   return { ok: true as const, sent: result.sent, skipped: result.skipped };
+}
+
+export async function sendPushText(title: string, body: string) {
+  const actor = await adminId();
+  const text = cleanPush(title, body);
+  if (!actor || !text) return { ok: false as const, sent: 0 };
+  const stamp = Date.now();
+  const result = await dispatchText(text.title, text.body, `texto-${stamp}`);
+  await audit(actor, "push", null, { kind: text.title, sent: result.sent });
+  revalidatePath("/admin/push");
+  revalidatePath("/admin/auditoria");
+  return { ok: true as const, sent: result.sent, skipped: result.skipped };
+}
+
+export async function savePushRules(rules: PushRules) {
+  const actor = await adminId();
+  if (!actor) return { ok: false as const };
+  const board = await readBoard(true);
+  board.pushRules = { morning: rules.morning === true, kickoff: rules.kickoff === true };
+  await writeBoard(board);
+  await audit(actor, "push_rule", null, { morning: board.pushRules.morning, kickoff: board.pushRules.kickoff });
+  revalidatePath("/admin/push");
+  return { ok: true as const };
+}
+
+export async function createPushPlan(input: { title: string; body: string; mode: PushMode; date: string | null; time: string | null; weekday: number | null }) {
+  const actor = await adminId();
+  const text = cleanPush(input.title, input.body);
+  if (!actor || !text) return { ok: false as const, error: "texto" as const };
+  const clock = input.time && /^\d{2}:\d{2}$/.test(input.time) ? input.time : null;
+  const onceAt = input.mode === "once" && input.date && clock ? Date.parse(`${input.date}T${clock}:00-03:00`) : NaN;
+  const plan = {
+    id: id(),
+    title: text.title,
+    body: text.body,
+    mode: input.mode,
+    at: Number.isFinite(onceAt) ? new Date(onceAt).toISOString() : null,
+    time: input.mode === "once" ? null : clock,
+    weekday: input.mode === "weekly" ? input.weekday : null,
+    enabled: true,
+    nextAt: "",
+    sentAt: null,
+    createdAt: new Date().toISOString(),
+  };
+  if (plan.mode === "weekly" && (plan.weekday == null || plan.weekday < 0 || plan.weekday > 6)) return { ok: false as const, error: "dia" as const };
+  if (plan.mode !== "once" && !plan.time) return { ok: false as const, error: "hora" as const };
+  const nextAt = nextRun(plan);
+  if (!nextAt || Date.parse(nextAt) <= Date.now()) return { ok: false as const, error: "hora" as const };
+  plan.nextAt = nextAt;
+  const board = await readBoard(true);
+  board.pushPlans = [plan, ...board.pushPlans].slice(0, 40);
+  await writeBoard(board);
+  await audit(actor, "push_plan", null, { title: plan.title, mode: plan.mode });
+  revalidatePath("/admin/push");
+  return { ok: true as const };
+}
+
+export async function setPushPlanEnabled(planId: string, enabled: boolean) {
+  const actor = await adminId();
+  if (!actor) return { ok: false as const, error: "auth" as const };
+  const board = await readBoard(true);
+  const plan = board.pushPlans.find((item) => item.id === planId);
+  if (!plan) return { ok: false as const, error: "auth" as const };
+  if (enabled && plan.mode !== "once") {
+    const following = nextRun(plan);
+    if (!following) return { ok: false as const, error: "hora" as const };
+    plan.nextAt = following;
+  }
+  if (enabled && plan.mode === "once" && Date.parse(plan.nextAt) <= Date.now()) return { ok: false as const, error: "passou" as const };
+  plan.enabled = enabled;
+  if (enabled) plan.sentAt = null;
+  await writeBoard(board);
+  revalidatePath("/admin/push");
+  return { ok: true as const };
+}
+
+export async function removePushPlan(planId: string) {
+  const actor = await adminId();
+  if (!actor) return { ok: false as const };
+  const board = await readBoard(true);
+  board.pushPlans = board.pushPlans.filter((plan) => plan.id !== planId);
+  await writeBoard(board);
+  revalidatePath("/admin/push");
+  return { ok: true as const };
+}
+
+function cleanPush(title: string, body: string) {
+  const cleanTitle = title.trim().slice(0, 80);
+  const cleanBody = body.trim().slice(0, 180);
+  if (cleanTitle.length < 2 || cleanBody.length < 2) return null;
+  return { title: cleanTitle, body: cleanBody };
 }
 
 async function audit(adminIdValue: string, action: string, targetUserId: string | null, payload: Record<string, string | number | boolean | null>) {

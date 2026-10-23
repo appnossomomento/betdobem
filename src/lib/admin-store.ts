@@ -48,6 +48,24 @@ export type Audit = {
   createdAt: string;
 };
 
+export type PushMode = "once" | "daily" | "weekly";
+
+export type PushPlan = {
+  id: string;
+  title: string;
+  body: string;
+  mode: PushMode;
+  at: string | null;
+  time: string | null;
+  weekday: number | null;
+  enabled: boolean;
+  nextAt: string;
+  sentAt: string | null;
+  createdAt: string;
+};
+
+export type PushRules = { morning: boolean; kickoff: boolean };
+
 export type Board = {
   segments: Segment[];
   polls: Poll[];
@@ -55,10 +73,12 @@ export type Board = {
   audits: Audit[];
   banned: string[];
   vips: string[];
+  pushPlans: PushPlan[];
+  pushRules: PushRules;
 };
 
 function blank(): Board {
-  return { segments: [], polls: [], notices: [], audits: [], banned: [], vips: [] };
+  return { segments: [], polls: [], notices: [], audits: [], banned: [], vips: [], pushPlans: [], pushRules: { morning: false, kickoff: false } };
 }
 let cache: { at: number; board: Board } | null = null;
 
@@ -80,6 +100,11 @@ export async function readBoard(force = false): Promise<Board> {
       ...parsed,
       banned: Array.isArray(parsed.banned) ? parsed.banned : [],
       vips: Array.isArray(parsed.vips) ? parsed.vips : [],
+      pushPlans: Array.isArray(parsed.pushPlans) ? parsed.pushPlans.filter(planOk) : [],
+      pushRules: {
+        morning: parsed.pushRules?.morning === true,
+        kickoff: parsed.pushRules?.kickoff === true,
+      },
     };
     cache = { at: Date.now(), board };
     return board;
@@ -98,6 +123,10 @@ export async function writeBoard(board: Board) {
   });
   if (error) throw new Error(error.message);
   cache = { at: Date.now(), board };
+}
+
+function planOk(plan: PushPlan) {
+  return Boolean(plan && plan.id && plan.title && plan.body && plan.nextAt && (plan.mode === "once" || plan.mode === "daily" || plan.mode === "weekly"));
 }
 
 async function ensureBucket(admin: ReturnType<typeof createAdminClient>) {
