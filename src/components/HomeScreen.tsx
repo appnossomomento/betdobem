@@ -215,7 +215,7 @@ function LeagueBoard({ leagues, index, open, onToggle, onCycle }: { leagues: Lea
       </section>
     );
   }
-  const photo = photos[index];
+  const photo = photos[index] ?? league.photo;
 
   function onFile(file: File | undefined) {
     if (!file) return;
