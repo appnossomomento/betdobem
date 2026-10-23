@@ -1,7 +1,16 @@
+import { Suspense } from "react";
 import { ClosePoll, PollForm } from "@/components/AdminForms";
 import { readBoard } from "@/lib/admin-store";
 
-export default async function PollsPage() {
+export default function PollsPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted">Carregando…</p>}>
+      <PollsBody />
+    </Suspense>
+  );
+}
+
+async function PollsBody() {
   const board = await readBoard();
   return (
     <div>

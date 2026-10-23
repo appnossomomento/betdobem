@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { readBoard } from "@/lib/admin-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,9 +16,9 @@ async function viewer() {
 export async function createLeague(input: { name: string; prize: string; photo: string; duration: string; playerCap: number; visibility: "publica" | "privada" }) {
   const user = await viewer();
   if (!user) return { ok: false as const, error: "Entre na conta." };
+  const board = await readBoard();
+  if (!board.vips.includes(user.id)) return { ok: false as const, error: "Criar liga é benefício VIP." };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from("profiles").select("vip").eq("id", user.id).maybeSingle();
-  if (!profile?.vip) return { ok: false as const, error: "Criar liga é benefício VIP." };
   const { count } = await admin.from("league_members").select("league_id", { count: "exact", head: true }).eq("user_id", user.id);
   if ((count ?? 0) >= 3) return { ok: false as const, error: "Você já está em 3 ligas." };
   if (!input.photo.startsWith("data:image/")) return { ok: false as const, error: "Inclua uma foto da liga." };
@@ -38,6 +39,7 @@ export async function createLeague(input: { name: string; prize: string; photo: 
   if (photoUrl) await admin.from("leagues").update({ photo_url: photoUrl }).eq("id", created.id);
   await admin.from("league_members").insert({ league_id: created.id, user_id: user.id });
   revalidatePath("/ranking");
+  revalidatePath("/");
   return { ok: true as const, id: created.id };
 }
 
@@ -70,6 +72,8 @@ export async function leaveLeague(id: string) {
   const admin = createAdminClient();
   await admin.from("league_members").delete().eq("league_id", id).eq("user_id", user.id);
   revalidatePath("/ranking");
+  revalidatePath("/");
+  revalidatePath(`/liga/${id}`);
   return { ok: true as const };
 }
 
@@ -96,12 +100,14 @@ export async function joinLeague(input: { id?: string; code?: string }) {
     ? (leagues ?? []).find((item) => item.id === input.id)
     : (leagues ?? []).find((item) => itemCode(item.id) === code);
   if (!league) return { ok: false as const, error: "Liga não encontrada." };
-  if (league.visibility === "privada" && itemCode(league.id) !== code) return { ok: false as const, error: "Código inválido." };
+  if (!input.id && league.visibility === "privada" && itemCode(league.id) !== code) return { ok: false as const, error: "Código inválido." };
   const { count: members } = await admin.from("league_members").select("user_id", { count: "exact", head: true }).eq("league_id", league.id);
   if ((members ?? 0) >= league.player_cap) return { ok: false as const, error: "A liga está cheia." };
   const { error } = await admin.from("league_members").insert({ league_id: league.id, user_id: user.id });
   if (error && !/duplicate|unique/i.test(error.message)) return { ok: false as const, error: "Não foi possível entrar." };
   revalidatePath("/ranking");
+  revalidatePath("/");
+  revalidatePath(`/liga/${league.id}`);
   return { ok: true as const };
 }
 

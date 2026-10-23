@@ -39,4 +39,5 @@ export async function markNotice(noticeId: string) {
   notice.reads.push({ userId: id, readAt: new Date().toISOString() });
   await writeBoard(board);
   revalidatePath("/avisos");
+  revalidatePath("/");
 }

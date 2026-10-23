@@ -1,22 +1,23 @@
-import Link from "next/link";
-import { loadDirectory, loadTeams } from "@/lib/admin-data";
+import { Suspense } from "react";
+import { TeamsBoard } from "@/components/TeamsBoard";
+import { loadDirectory } from "@/lib/admin-data";
+import { TEAMS } from "@/lib/profile-fields";
+import { teamColor } from "@/lib/team-colors";
 
-export default async function TeamsPage() {
-  const people = await loadDirectory();
-  const teams = await loadTeams(people);
+export default function TeamsPage() {
   return (
-    <div>
-      <h1 className="text-xl">Times</h1>
-      <ul className="mt-3">
-        {teams.map((team) => (
-          <li key={team.team} className="border-t border-line py-3">
-            <Link href={`/admin/usuarios?team=${encodeURIComponent(team.team)}`} className="flex items-center justify-between gap-3">
-              <b className="text-sm font-semibold">{team.team}</b>
-              <span className="text-xs text-muted tabular-nums">{team.fans} torcedores · {team.bets} apostas · média {team.average} · acerto {team.hit}%</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Suspense fallback={<p className="text-sm text-muted">Carregando…</p>}>
+      <TeamsBody />
+    </Suspense>
   );
+}
+
+async function TeamsBody() {
+  const people = await loadDirectory();
+  const counts = new Map<string, number>();
+  for (const person of people) counts.set(person.team || "Sem time", (counts.get(person.team || "Sem time") ?? 0) + 1);
+  const names = new Set<string>([...TEAMS, ...counts.keys()]);
+  const rows = [...names].map((team) => ({ team, fans: counts.get(team) ?? 0, color: teamColor(team) }));
+  rows.sort((a, b) => b.fans - a.fans || a.team.localeCompare(b.team, "pt-BR"));
+  return <TeamsBoard rows={rows} />;
 }

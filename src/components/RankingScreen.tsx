@@ -1,10 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createLeague as createLeagueAction, endLeague, joinLeague, leaveLeague as leaveLeagueAction, updateLeague } from "@/lib/leagues";
-import { leagueMarks, leagues as seedLeagues, standingsFromHistory, type League, type LeagueVisibility, type RankRow } from "@/data/home";
+import { leagueMarks, leagues as seedLeagues, type League, type LeagueVisibility, type RankRow } from "@/data/home";
 import { Coin } from "./Icons";
+import { RankAvatar } from "./RankAvatar";
 
 const monthName = new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "America/Sao_Paulo" }).format(new Date());
 
@@ -15,9 +17,9 @@ const medalSrc = {
 } as const;
 
 const prizes = [
-  { place: 1 as const, title: "Kit do clube", detail: "Tamanho do cadastro" },
-  { place: 2 as const, title: "Item do clube", detail: "Outro item" },
-  { place: 3 as const, title: "Premiere", detail: "ou Globoplay, 2–3 meses" },
+  { place: 1 as const, title: "Kit do clube", detail: "Sortido" },
+  { place: 2 as const, title: "Item do clube", detail: "Sortido" },
+  { place: 3 as const, title: "Streaming", detail: "Premiere" },
 ];
 
 const maxLeagues = 3;
@@ -37,7 +39,6 @@ type Dialog = { kind: "create" } | { kind: "edit"; name: string } | { kind: "vip
 export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLeagues = [], vip }: { weeklyRows: RankRow[]; monthlyRows: RankRow[]; initialLeagues: League[]; openLeagues?: League[]; vip: boolean }) {
   const [period, setPeriod] = useState<"Semanal" | "Mensal">("Semanal");
   const [board, setBoard] = useState<League[]>(() => initialLeagues.map((league) => ({ ...league, rows: league.rows.map((row) => ({ ...row })) })));
-  const [open, setOpen] = useState<string | null>(initialLeagues[0]?.name ?? null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const rows = period === "Semanal" ? weeklyRows : monthlyRows;
   const you = rows.find((row) => row.you);
@@ -64,6 +65,7 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
       return;
     }
     setDialog(null);
+    router.push(`/liga/${result.id}`);
     router.refresh();
   }
 
@@ -82,7 +84,6 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
     const league = board.find((item) => item.name === name);
     if (league?.hosted && league.id) await endLeague(league.id);
     else if (league?.id) await leaveLeagueAction(league.id);
-    setOpen((current) => (current === name ? null : current));
     router.refresh();
   }
 
@@ -103,18 +104,17 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
         <h1 className="mt-1 text-xl tracking-tight">Ranking</h1>
       </header>
 
-      {you ? (
-        <section className="rounded-[18px] border border-line bg-card p-4 shadow-[0_10px_28px_rgba(0,0,0,0.28)]" aria-label="Sua posição">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">{period === "Semanal" ? "Esta semana" : "Este mês"}</p>
+      <section className="rounded-[18px] border border-line bg-card p-4 shadow-[0_10px_28px_rgba(0,0,0,0.28)]" aria-label="Sua posição">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">{period === "Semanal" ? "Esta semana" : "Este mês"}</p>
+            {you ? (
               <p className="mt-1 text-3xl font-bold tabular-nums">{you.place}º</p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Avatar row={you} />
-                <b className="text-sm font-semibold">{you.name}</b>
-                <span className="rounded-md bg-accent px-1.5 py-0.5 text-[11px] font-bold text-accent-ink">Você</span>
-              </div>
-            </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted">{period === "Mensal" ? "Aguarde o fechamento da primeira semana" : "Ninguém no ranking ainda"}</p>
+            )}
+          </div>
+          {you ? (
             <div className="text-right">
               <span className="inline-flex items-center gap-1 text-2xl font-bold tabular-nums">
                 <Coin />
@@ -123,24 +123,9 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
               {period === "Semanal" && monthYou ? <p className="mt-1 text-xs text-muted">{monthYou.place}º no mês</p> : null}
               {period === "Mensal" && weekYou ? <p className="mt-1 text-xs text-muted">{weekYou.place}º na semana</p> : null}
             </div>
-          </div>
-          <div className="mt-4 grid grid-cols-2 rounded-full bg-card-2 p-0.5" role="tablist" aria-label="Período">
-            {(["Semanal", "Mensal"] as const).map((item) => (
-              <button
-                key={item}
-                type="button"
-                role="tab"
-                aria-selected={period === item}
-                onClick={() => setPeriod(item)}
-                className={`rounded-full py-1.5 text-sm font-semibold ${period === item ? "bg-accent text-accent-ink" : "text-muted"}`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <div className="grid grid-cols-2 rounded-full bg-card-2 p-0.5" role="tablist" aria-label="Período">
+          ) : null}
+        </div>
+        <div className="mt-4 grid grid-cols-2 rounded-full bg-card-2 p-0.5" role="tablist" aria-label="Período">
           {(["Semanal", "Mensal"] as const).map((item) => (
             <button
               key={item}
@@ -154,7 +139,7 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
             </button>
           ))}
         </div>
-      )}
+      </section>
 
       <section aria-label={`Premiação de ${monthName}`}>
         <h2 className="mb-2 text-[15px] tracking-tight">Premiação de {monthName}</h2>
@@ -174,7 +159,7 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
           <h2 id="geral-titulo" className="mb-1 text-[15px] tracking-tight">Ranking geral</h2>
           <p className="mb-2 text-xs text-muted">{period}</p>
           <ol>
-            {rows.length === 0 ? <li className="border-t border-line py-6 text-sm text-muted">Ninguém no ranking ainda</li> : rows.map((row) => (
+            {rows.length === 0 ? <li className="border-t border-line py-6 text-sm text-muted">{period === "Mensal" ? "Aguarde o fechamento da primeira semana" : "Ninguém no ranking ainda"}</li> : rows.map((row) => (
               <RankItem key={`${period}-${row.place}-${row.initials}`} row={row} />
             ))}
           </ol>
@@ -201,39 +186,31 @@ export function RankingScreen({ weeklyRows, monthlyRows, initialLeagues, openLea
 
           {board.length === 0 ? <p className="text-sm text-muted">Nenhuma liga</p> : null}
           {board.map((league) => {
-            const expanded = open === league.name;
-            const table = league.history ? standingsFromHistory(league) : league.rows;
-            const mine = table.find((row) => row.you);
+            const mine = league.rows.find((row) => row.you);
+            const body = (
+              <>
+                {league.photo ? (
+                  <img src={league.photo} alt="" className="h-8 w-10 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <span className="h-8 w-10 shrink-0 rounded-lg" style={{ background: markFor(league) }} />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{league.name}</span>
+                  <span className="text-xs text-muted">{league.hosted ? `Anfitrião${league.visibility === "privada" && league.id ? ` · ${league.id.replace(/-/g, "").slice(0, 6).toUpperCase()}` : ""}` : "Você participa"}</span>
+                </span>
+                {mine ? <span className="text-sm font-bold tabular-nums">{mine.place}º</span> : null}
+              </>
+            );
             return (
-              <article key={league.name} className="rounded-[18px] border border-line bg-card px-[18px] pt-3 pb-1 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
-                <button type="button" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : league.name)} className="flex w-full items-center gap-3 pb-3 text-left">
-                  {league.photo ? (
-                    <img src={league.photo} alt="" className="h-8 w-10 shrink-0 rounded-lg object-cover" />
-                  ) : (
-                    <span className="h-8 w-10 shrink-0 rounded-lg" style={{ background: markFor(league) }} />
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{league.name}</span>
-                    <span className="text-xs text-muted">{league.hosted ? `Anfitrião${league.visibility === "privada" && league.id ? ` · ${league.id.replace(/-/g, "").slice(0, 6).toUpperCase()}` : ""}` : "Você participa"}</span>
-                  </span>
-                  {mine ? <span className="text-sm font-bold tabular-nums">{mine.place}º</span> : null}
-                </button>
-                <div className={`fold ${expanded ? "fold-open" : ""}`}>
-                  <div className="fold-inner" inert={expanded ? undefined : true}>
-                    <ol>
-                      {table.map((row) => (
-                        <RankItem key={`${league.name}-${row.place}-${row.initials}`} row={row} host={Boolean(league.hosted && row.you)} />
-                      ))}
-                    </ol>
-                    <div className="flex justify-end pb-3">
-                      {league.hosted ? (
-                        <button type="button" onClick={() => setDialog({ kind: "edit", name: league.name })} className="rounded-lg bg-card-2 px-3 py-1.5 text-sm font-semibold text-ink">Administrar</button>
-                      ) : (
-                        <button type="button" onClick={() => leaveLeague(league.name)} className="rounded-md border border-[#5c1818] px-2 py-0.5 text-[11px] font-semibold text-[#c4292e]">Sair</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              <article key={league.id ?? league.name} className="flex items-center gap-2 rounded-[18px] border border-line bg-card px-[18px] py-3 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+                {league.id ? (
+                  <Link href={`/liga/${league.id}`} className="flex min-w-0 flex-1 items-center gap-3 text-left">{body}</Link>
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-center gap-3">{body}</div>
+                )}
+                {league.hosted ? (
+                  <button type="button" onClick={() => setDialog({ kind: "edit", name: league.name })} className="shrink-0 rounded-lg bg-card-2 px-3 py-1.5 text-sm font-semibold text-ink">Administrar</button>
+                ) : null}
               </article>
             );
           })}
@@ -439,7 +416,7 @@ function RankItem({ row, host }: { row: RankRow; host?: boolean }) {
         {medal ? <span className="sr-only">{row.place}</span> : null}
       </span>
       <div className="flex min-w-0 items-center gap-2">
-        <Avatar row={row} />
+        <RankAvatar row={row} />
         <b className="truncate text-sm font-semibold">{row.name}</b>
         {row.you ? <span className="rounded-md bg-accent px-1.5 py-0.5 text-[11px] font-bold text-accent-ink">Você</span> : null}
         {host ? <span className="rounded-md border border-line px-1.5 py-0.5 text-[11px] font-bold text-muted">Anfitrião</span> : null}
@@ -449,15 +426,6 @@ function RankItem({ row, host }: { row: RankRow; host?: boolean }) {
         {row.points}
       </span>
     </li>
-  );
-}
-
-function Avatar({ row }: { row: RankRow }) {
-  return (
-    <svg viewBox="0 0 32 32" className="size-[26px] shrink-0" aria-hidden="true">
-      <circle cx="16" cy="16" r="16" fill={row.color} />
-      <text x="16" y="21" textAnchor="middle" fontSize="12" fontWeight="700" fill={row.ink} fontFamily="Outfit, sans-serif">{row.initials}</text>
-    </svg>
   );
 }
 

@@ -1,10 +1,19 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UserEditor } from "@/components/AdminUsers";
 import { loadDirectory, loadTeams } from "@/lib/admin-data";
 import { readBoard } from "@/lib/admin-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
+export default function UserPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted">Carregando…</p>}>
+      <UserBody params={params} />
+    </Suspense>
+  );
+}
+
+async function UserBody({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const people = await loadDirectory();
   const person = people.find((item) => item.id === id);

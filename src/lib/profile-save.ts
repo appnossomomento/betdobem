@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { initialsFrom, checkProfile, type ProfileInput } from "@/lib/profile-fields";
+import { initialsFrom, checkProfile, cpfDigits, type ProfileInput } from "@/lib/profile-fields";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 

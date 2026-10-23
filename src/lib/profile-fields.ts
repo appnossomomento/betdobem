@@ -33,6 +33,28 @@ export type ProfileInput = {
   bottomSize: string;
 };
 
+export function cpfDigits(value: string) {
+  return value.replace(/\D/g, "").slice(0, 11);
+}
+
+export function formatCpf(value: string) {
+  const digits = cpfDigits(value);
+  return digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+export function checkCpf(value: string) {
+  const cpf = cpfDigits(value);
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return "CPF inválido.";
+  const digit = (length: number) => {
+    let sum = 0;
+    for (let index = 0; index < length; index += 1) sum += Number(cpf[index]) * (length + 1 - index);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  if (digit(9) !== Number(cpf[9]) || digit(10) !== Number(cpf[10])) return "CPF inválido.";
+  return "";
+}
+
 export function initialsFrom(nick: string) {
   const clean = nick.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]/g, "");
   return (clean.slice(0, 2) || "JB").toUpperCase();

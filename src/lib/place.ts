@@ -1,15 +1,16 @@
 "use server";
 
-import { oddFor, phraseFor, type Side } from "@/data/home";
+import { oddFor, phraseFor, placarOdd, placarPhrase, type Side } from "@/data/home";
 import { readBoard } from "@/lib/admin-store";
 import { weekKey } from "@/lib/economy";
+import { kickoffDay, marketOpen } from "@/lib/market";
 import { getRound } from "@/lib/round";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type PlaceResult =
   | { ok: true; balance: number; stake: number; back: number; id: string }
-  | { ok: false; error: "entre" | "valor" | "jogo" | "odd" | "saldo" | "grava" | "suspensa" | "repetida" };
+  | { ok: false; error: "entre" | "valor" | "jogo" | "odd" | "saldo" | "grava" | "suspensa" | "repetida" | "fechado" | "dia" };
 
 type LegInput = { fixtureId: string; key: string; odd: number };
 
@@ -27,9 +28,25 @@ export async function placeBet(stake: number, legs: LegInput[]): Promise<PlaceRe
   const round = await getRound();
   const locked: { fixture_id: string; market: string; selection_key: string; phrase: string; odd: number; competition: string }[] = [];
   for (const leg of legs) {
-    if (!isSide(leg.key)) return { ok: false, error: "odd" };
     const game = round.games.find((item) => item.id === leg.fixtureId);
     if (!game) return { ok: false, error: "jogo" };
+    if (kickoffDay(game.kickoff) === "future") return { ok: false, error: "dia" };
+    if (!marketOpen(game.kickoff)) return { ok: false, error: "fechado" };
+    const score = scoreLine(leg.key);
+    if (score) {
+      const odd = placarOdd(score.home, score.away);
+      if (Math.abs(odd - leg.odd) > 0.011) return { ok: false, error: "odd" };
+      locked.push({
+        fixture_id: game.id,
+        market: "placar",
+        selection_key: leg.key,
+        phrase: placarPhrase(game, score.home, score.away),
+        odd,
+        competition: game.competition,
+      });
+      continue;
+    }
+    if (!isSide(leg.key)) return { ok: false, error: "odd" };
     const odd = oddFor(game, leg.key);
     if (odd == null || Math.abs(odd - leg.odd) > 0.011) return { ok: false, error: "odd" };
     locked.push({
@@ -105,4 +122,13 @@ export async function placeBet(stake: number, legs: LegInput[]): Promise<PlaceRe
 
 function isSide(key: string): key is Side {
   return key === "1" || key === "X" || key === "2";
+}
+
+function scoreLine(key: string) {
+  const match = /^P:(\d{1,2})-(\d{1,2})$/.exec(key);
+  if (!match) return null;
+  const home = Number(match[1]);
+  const away = Number(match[2]);
+  if (home > 20 || away > 20) return null;
+  return { home, away };
 }

@@ -24,6 +24,10 @@ export function SegmentForm() {
   const [inLeague, setInLeague] = useState("");
   const [message, setMessage] = useState("");
 
+  function peopleLabel(count: number) {
+    return count === 1 ? "1 pessoa entra nesse recorte" : `${count} pessoas entram nesse recorte`;
+  }
+
   function filter() {
     return {
       team: team || undefined,
@@ -44,7 +48,7 @@ export function SegmentForm() {
     <form className="mt-3 flex flex-col gap-2 rounded-2xl border border-line bg-card p-4" onSubmit={async (event) => {
       event.preventDefault();
       const result = await saveSegment(name, filter());
-      setMessage(result.ok ? `${result.count} pessoas` : "Não foi possível.");
+      setMessage(result.ok ? `Segmento salvo. ${peopleLabel(result.count)}.` : "Não foi possível salvar.");
       if (result.ok) router.refresh();
     }}>
       <label className="text-xs text-muted">Nome<input value={name} onChange={(event) => setName(event.target.value)} className={field} /></label>
@@ -74,7 +78,7 @@ export function SegmentForm() {
         <select value={inLeague} onChange={(event) => setInLeague(event.target.value)} className={field}><option value="">Qualquer</option><option value="1">Em alguma liga</option><option value="0">Fora de liga</option></select>
       </label>
       <div className="flex gap-2">
-        <button type="button" onClick={async () => setMessage(String(await previewSegment(filter())))} className="h-10 flex-1 rounded-lg bg-card-2 text-sm font-semibold">Contar</button>
+        <button type="button" onClick={async () => setMessage(`${peopleLabel(await previewSegment(filter()))}. Nada foi salvo.`)} className="h-10 flex-1 rounded-lg bg-card-2 text-sm font-semibold">Contar</button>
         <button className="h-10 flex-1 rounded-lg bg-accent text-sm font-bold text-accent-ink">Salvar</button>
       </div>
       {message ? <p className="text-sm text-accent">{message}</p> : null}

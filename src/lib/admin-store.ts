@@ -54,10 +54,11 @@ export type Board = {
   notices: Notice[];
   audits: Audit[];
   banned: string[];
+  vips: string[];
 };
 
 function blank(): Board {
-  return { segments: [], polls: [], notices: [], audits: [], banned: [] };
+  return { segments: [], polls: [], notices: [], audits: [], banned: [], vips: [] };
 }
 let cache: { at: number; board: Board } | null = null;
 
@@ -73,7 +74,13 @@ export async function readBoard(force = false): Promise<Board> {
       cache = { at: Date.now(), board };
       return board;
     }
-    const board = { ...blank(), ...(JSON.parse(await data.text()) as Board) };
+    const parsed = JSON.parse(await data.text()) as Partial<Board>;
+    const board: Board = {
+      ...blank(),
+      ...parsed,
+      banned: Array.isArray(parsed.banned) ? parsed.banned : [],
+      vips: Array.isArray(parsed.vips) ? parsed.vips : [],
+    };
     cache = { at: Date.now(), board };
     return board;
   } catch {

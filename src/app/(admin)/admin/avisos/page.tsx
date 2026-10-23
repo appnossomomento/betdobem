@@ -1,7 +1,16 @@
+import { Suspense } from "react";
 import { NoticeForm } from "@/components/AdminForms";
 import { readBoard } from "@/lib/admin-store";
 
-export default async function AdminNoticesPage() {
+export default function AdminNoticesPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted">Carregando…</p>}>
+      <NoticesBody />
+    </Suspense>
+  );
+}
+
+async function NoticesBody() {
   const board = await readBoard();
   return (
     <div>

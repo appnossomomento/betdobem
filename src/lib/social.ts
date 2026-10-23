@@ -1,13 +1,14 @@
 import "server-only";
 import type { League, RankRow } from "@/data/home";
 import { readBoard } from "@/lib/admin-store";
+import { publicAvatar } from "@/lib/avatar-url";
 import { monthKey } from "@/lib/economy";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const colors = ["#d6f25c", "#8eb6ff", "#f2a0c0", "#f0c36a", "#8fd0b5", "#c4a6f5", "#f0a07a"];
 const inks = ["#1a2208", "#102033", "#3a1020", "#2a1c08", "#102820", "#241433", "#2a140c"];
 
-type Person = { id: string; nick: string; initials: string; balance: number };
+type Person = { id: string; nick: string; initials: string; balance: number; avatarUrl: string };
 
 export async function loadSocial(viewerId: string) {
   const people = await loadPeople();
@@ -17,9 +18,22 @@ export async function loadSocial(viewerId: string) {
   return { weekly, monthly, mine, open };
 }
 
+export async function loadLeague(viewerId: string, leagueId: string) {
+  const people = await loadPeople();
+  const { mine } = await loadLeagues(viewerId, people);
+  return mine.find((league) => league.id === leagueId) ?? null;
+}
+
+export async function loadLeaguePreview(leagueId: string): Promise<League | null> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("leagues").select("id, name, photo_url").eq("id", leagueId).eq("status", "active").maybeSingle();
+  if (!data) return null;
+  return { id: data.id, name: data.name, photo: data.photo_url ?? undefined, rows: [] };
+}
+
 export async function loadPeople(): Promise<Person[]> {
   const admin = createAdminClient();
-  const { data: profiles } = await admin.from("profiles").select("id, display_name, initials");
+  const { data: profiles } = await admin.from("profiles").select("id, display_name, initials, avatar_url");
   const { data: ledger } = await admin.from("ledger").select("user_id, amount");
   const balances = new Map<string, number>();
   for (const row of ledger ?? []) balances.set(row.user_id, (balances.get(row.user_id) ?? 0) + Number(row.amount));
@@ -30,6 +44,7 @@ export async function loadPeople(): Promise<Person[]> {
       id: profile.id,
       nick: profile.display_name,
       initials: profile.initials,
+      avatarUrl: publicAvatar(profile.avatar_url),
       balance: Math.round((balances.get(profile.id) ?? 0) * 100) / 100,
     }));
 }
@@ -72,6 +87,7 @@ async function loadLeagues(viewerId: string, people: Person[]) {
       return {
         place: index + 1,
         initials: person?.initials ?? "??",
+        avatarUrl: person?.avatarUrl || undefined,
         name: person?.nick ?? "Jogador",
         you: member.user_id === viewerId,
         points,
@@ -103,6 +119,7 @@ function row(person: Person, index: number, viewerId: string, points: number): R
   return {
     place: index + 1,
     initials: person.initials,
+    avatarUrl: person.avatarUrl || undefined,
     name: person.nick,
     you: person.id === viewerId,
     points,

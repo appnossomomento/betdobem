@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerAccount } from "@/lib/register";
-import { SIZES, TEAMS, checkProfile } from "@/lib/profile-fields";
+import { SIZES, TEAMS, checkCpf, checkProfile, cpfDigits, formatCpf } from "@/lib/profile-fields";
 import { readSlip } from "@/lib/slip-store";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,6 +16,7 @@ export function LoginScreen({ banned = false }: { banned?: boolean }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [nick, setNick] = useState("");
+  const [cpf, setCpf] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [age, setAge] = useState("");
@@ -25,6 +26,14 @@ export function LoginScreen({ banned = false }: { banned?: boolean }) {
   const [bottom, setBottom] = useState<(typeof SIZES)[number]>("M");
 
   function afterAuth() {
+    sessionStorage.setItem("betdobem.enquete", "1");
+    const invite = sessionStorage.getItem("betdobem.convite");
+    if (invite && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(invite)) {
+      sessionStorage.removeItem("betdobem.convite");
+      router.push(`/liga/${invite}?convite=1&aceitar=1`);
+      router.refresh();
+      return;
+    }
     const slip = readSlip();
     router.push(slip && slip.order.length > 0 ? "/jogos?bilhete=1" : "/");
     router.refresh();
@@ -43,13 +52,13 @@ export function LoginScreen({ banned = false }: { banned?: boolean }) {
     }
     if (creating) {
       const input = { nick, age: Number(age), city, favoriteTeam: team, shirtSize: shirt, bottomSize: bottom };
-      const problem = checkProfile(input);
+      const problem = checkCpf(cpf) || checkProfile(input);
       if (problem) {
         setPending(false);
         setMessage(problem);
         return;
       }
-      const created = await registerAccount({ ...input, email, password });
+      const created = await registerAccount({ ...input, email, password, cpf: cpfDigits(cpf) });
       if (!created.ok) {
         setPending(false);
         setMessage(created.error);
@@ -79,7 +88,7 @@ export function LoginScreen({ banned = false }: { banned?: boolean }) {
   if (creating || resetting) moved.current = true;
 
   return (
-    <div className="soft-in fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-bg px-4 py-8">
+    <div className="fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-bg px-4 py-8">
       <section className="w-full max-w-md rounded-[18px] border border-line bg-card p-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
         <img src="/logo-bet-do-bem/LogoPrincipal-completo.png" alt="BETdoBEM" className="mx-auto h-14 w-auto" />
         {banned ? <p className="mt-4 text-center text-sm font-semibold text-[#c4292e]">Conta suspensa.</p> : null}
@@ -87,6 +96,7 @@ export function LoginScreen({ banned = false }: { banned?: boolean }) {
           {creating ? (
             <>
               <Field label="Apelido"><input value={nick} maxLength={16} onChange={(event) => setNick(event.target.value)} required className={field} /></Field>
+              <Field label="CPF"><input inputMode="numeric" autoComplete="off" value={formatCpf(cpf)} onChange={(event) => setCpf(cpfDigits(event.target.value))} required className={field} /></Field>
               <Field label="E-mail"><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required className={field} /></Field>
               <Field label="Senha"><input type="password" autoComplete="new-password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required className={field} /></Field>
               <Field label="Idade"><input inputMode="numeric" value={age} onChange={(event) => setAge(event.target.value.replace(/\D/g, "").slice(0, 3))} required className={field} /></Field>

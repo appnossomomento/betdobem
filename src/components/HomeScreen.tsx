@@ -1,68 +1,45 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import {
   champs,
   leagueMarks,
-  oddFor,
-  phraseFor,
   type League,
   type OddGame,
   type RankRow,
   type RoundCard,
   type Side,
 } from "@/data/home";
-import { useBet } from "./BetContext";
+import { RankAvatar } from "./RankAvatar";
+import { marketOpen } from "@/lib/market";
+import { useMarketNow } from "./MarketClock";
 import { Chevron, Coin } from "./Icons";
 
 export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, poll = null }: { games: OddGame[]; cards: RoundCard[]; weeklyRows: RankRow[]; monthlyRows: RankRow[]; leagueRows: League[]; poll?: ReactNode }) {
-  const { picks, choose } = useBet();
   const [period, setPeriod] = useState<"Semanal" | "Mensal">("Semanal");
   const [periodMoved, setPeriodMoved] = useState(false);
-  const [champ, setChamp] = useState(1);
+  const [champ, setChamp] = useState(0);
   const [league, setLeague] = useState(0);
   const [rankingOpen, setRankingOpen] = useState(false);
   const [leaguesOpen, setLeaguesOpen] = useState(false);
-  const leftRef = useRef<HTMLDivElement>(null);
-  const boardRef = useRef<HTMLElement>(null);
+  const oddsScrollRef = useRef<HTMLDivElement>(null);
+  const now = useMarketNow();
   const rows = period === "Semanal" ? weeklyRows : monthlyRows;
   const filter = champs[champ].id;
-  const visible = filter === "todos" ? games : games.filter((game) => game.champ === filter);
+  const today = games.filter((game) => !game.finished && game.when.startsWith("hoje") && (filter === "todos" || game.champ === filter));
 
   useEffect(() => {
-    const left = leftRef.current;
-    const board = boardRef.current;
-    if (!left || !board) return;
-
-    const pin = () => {
-      const wide = window.matchMedia("(min-width: 880px)").matches;
-      board.style.height = wide ? `${Math.round(left.getBoundingClientRect().height)}px` : "";
-    };
-
-    pin();
-    const observer = new ResizeObserver(pin);
-    observer.observe(left);
-    window.addEventListener("resize", pin);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", pin);
-    };
-  }, []);
-
-  function chooseSide(game: OddGame, side: Side) {
-    const odd = oddFor(game, side);
-    if (odd == null) return;
-    choose(game.id, { key: side, odd, phrase: phraseFor(game, side), competition: game.competition, when: game.when });
-  }
+    oddsScrollRef.current?.scrollTo({ top: 0 });
+  }, [champ]);
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       <RoundStrip cards={cards} />
-      {poll}
+      {poll ? <div key="enquete">{poll}</div> : null}
 
       <div className="grid grid-cols-1 items-start gap-4 min-[880px]:grid-cols-[1.15fr_0.85fr]">
-        <div ref={leftRef} className="order-2 flex flex-col gap-4 min-[880px]:order-1">
+        <div className="order-2 flex flex-col gap-4 min-[880px]:order-1">
           <section className="rounded-[18px] border border-line bg-card px-[18px] pt-4 pb-2 shadow-[0_10px_28px_rgba(0,0,0,0.28)]" aria-labelledby="ranking-titulo">
             <div className="mb-4 hidden min-h-10 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 min-[880px]:grid">
               <h2 id="ranking-titulo" className="text-[15px] tracking-tight">Ranking</h2>
@@ -92,7 +69,7 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
               />
             </div>
             <ol key={period} className={periodMoved ? "soft-in" : ""}>
-              {rows.length === 0 ? <li className="border-t border-line py-6 text-sm text-muted">Ninguém no ranking ainda</li> : rows.map((row) => (
+              {rows.length === 0 ? <li className="border-t border-line py-6 text-sm text-muted">{period === "Mensal" ? "Aguarde o fechamento da primeira semana" : "Ninguém no ranking ainda"}</li> : rows.map((row) => (
                 <RankItem key={`${period}-${row.place}-${row.initials}`} row={row} />
               ))}
             </ol>
@@ -112,9 +89,9 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
           />
         </div>
 
-        <section ref={boardRef} className="order-1 flex flex-col overflow-hidden rounded-[18px] border border-line bg-card px-[18px] pt-4 pb-2 shadow-[0_10px_28px_rgba(0,0,0,0.28)] min-[880px]:order-2" aria-labelledby="odds-titulo">
-          <div className="mb-4 grid min-h-10 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-            <h2 id="odds-titulo" className="text-[15px] tracking-tight">Odds da rodada</h2>
+        <section className="order-1 flex flex-col rounded-[18px] border border-line bg-card px-[18px] pt-4 pb-2 shadow-[0_10px_28px_rgba(0,0,0,0.28)] min-[880px]:order-2" aria-labelledby="odds-titulo">
+          <div className="mb-4 flex min-h-10 items-center justify-between gap-3">
+            <h2 id="odds-titulo" className="shrink-0 text-[15px] tracking-tight">Odds de Hoje</h2>
             <Switch
               label={champs[champ].label}
               narrow
@@ -124,8 +101,8 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
               nextLabel="Próximo campeonato"
             />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {visible.map((game) => (
+          <div ref={oddsScrollRef} className="min-h-0 min-[880px]:max-h-[32rem] min-[880px]:overflow-y-auto min-[880px]:[scrollbar-color:rgba(255,255,255,0.28)_transparent] min-[880px]:[scrollbar-width:thin]">
+            {today.length === 0 ? <p className="border-t border-line py-6 text-sm text-muted">Nenhum jogo hoje.</p> : today.map((game) => (
               <article key={game.id} className="border-t border-line py-2.5">
                 <span className="text-xs text-muted tabular-nums">{game.when}</span>
                 <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
@@ -134,21 +111,22 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
                     <CrestName name={game.away} logo={game.awayLogo} />
                     {filter === "todos" ? <p className="mt-1 text-xs text-muted">{game.competition}</p> : null}
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {game.one != null ? <OddButton side="1" value={game.one} selected={picks[game.id]?.key === "1"} onChoose={() => chooseSide(game, "1")} /> : null}
-                    {game.draw != null ? <OddButton side="X" value={game.draw} selected={picks[game.id]?.key === "X"} onChoose={() => chooseSide(game, "X")} /> : null}
-                    {game.two != null ? <OddButton side="2" value={game.two} selected={picks[game.id]?.key === "2"} onChoose={() => chooseSide(game, "2")} /> : null}
-                    <Link href={`/jogo/${game.id}`} className="col-span-3 flex items-center justify-center rounded-lg bg-card-2 px-2 py-1.5 text-xs font-semibold text-ink">
-                      Placar
-                    </Link>
-                  </div>
+                  {marketOpen(game.kickoff, now) ? (
+                    <div className="grid grid-cols-[52px_52px_52px] gap-1.5">
+                      {game.one != null ? <OddLink side="1" value={game.one} /> : null}
+                      {game.draw != null ? <OddLink side="X" value={game.draw} /> : null}
+                      {game.two != null ? <OddLink side="2" value={game.two} /> : null}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-semibold text-muted">Mercado fechado</p>
+                  )}
                 </div>
               </article>
             ))}
           </div>
         </section>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -306,6 +284,7 @@ function LeagueBoard({ leagues, index, open, onToggle, onCycle }: { leagues: Lea
         />
         <Switch
           label={league.name}
+          href={league.id ? `/liga/${league.id}` : undefined}
           narrow
           onPrev={() => { setNote(""); onCycle(-1); }}
           onNext={() => { setNote(""); onCycle(1); }}
@@ -343,23 +322,24 @@ function CrestName({ name, logo }: { name: string; logo: string }) {
   );
 }
 
-function OddButton({ side, value, selected, onChoose }: { side: Side; value: number; selected: boolean; onChoose: () => void }) {
+function OddLink({ side, value }: { side: Side; value: number }) {
   return (
-    <button type="button" aria-pressed={selected} onClick={onChoose} className={`w-[52px] rounded-lg px-1 py-2 text-sm font-bold tabular-nums ${selected ? "bg-accent text-accent-ink" : "bg-card-2 text-accent"}`}>
-      <small className={`mb-0.5 block text-[10px] font-semibold ${selected ? "text-accent-ink" : "text-muted"}`}>{side}</small>
+    <Link href="/jogos" className="w-[52px] rounded-lg bg-card-2 px-1 py-2 text-center text-sm font-bold text-accent tabular-nums">
+      <small className="mb-0.5 block text-[10px] font-semibold text-muted">{side}</small>
       {value.toFixed(2)}
-    </button>
+    </Link>
   );
 }
 
-function Switch({ label, narrow, onPrev, onNext, prevLabel, nextLabel }: { label: string; narrow?: boolean; onPrev: () => void; onNext: () => void; prevLabel: string; nextLabel: string }) {
+function Switch({ label, href, narrow, onPrev, onNext, prevLabel, nextLabel }: { label: string; href?: string; narrow?: boolean; onPrev: () => void; onNext: () => void; prevLabel: string; nextLabel: string }) {
+  const className = `min-w-0 truncate px-1 text-center font-semibold ${narrow ? "max-w-[9.5rem] text-xs" : "min-w-[72px] text-[13px]"}`;
   return (
-    <div className="col-start-3 justify-self-end inline-flex items-center gap-0.5 rounded-full border border-line bg-card-2 p-0.5 text-ink">
-      <button type="button" aria-label={prevLabel} onClick={onPrev} className="grid size-7 place-items-center rounded-full hover:bg-white/6">
+    <div className="col-start-3 inline-flex min-w-0 max-w-full items-center gap-0.5 justify-self-end rounded-full border border-line bg-card-2 p-0.5 text-ink">
+      <button type="button" aria-label={prevLabel} onClick={onPrev} className="grid size-7 shrink-0 place-items-center rounded-full hover:bg-white/6">
         <Chevron dir="left" />
       </button>
-      <span className={`px-1 text-center text-[13px] font-semibold ${narrow ? "max-w-[148px] truncate text-xs" : "min-w-[72px]"}`}>{label}</span>
-      <button type="button" aria-label={nextLabel} onClick={onNext} className="grid size-7 place-items-center rounded-full hover:bg-white/6">
+      {href ? <Link href={href} title={label} className={className}>{label}</Link> : <span title={label} className={className}>{label}</span>}
+      <button type="button" aria-label={nextLabel} onClick={onNext} className="grid size-7 shrink-0 place-items-center rounded-full hover:bg-white/6">
         <Chevron dir="right" />
       </button>
     </div>
@@ -381,10 +361,7 @@ function RankItem({ row }: { row: RankRow }) {
         {medal ? <span className="sr-only">{row.place}</span> : null}
       </span>
       <div className="flex min-w-0 items-center gap-2">
-        <svg viewBox="0 0 32 32" className="size-[26px] shrink-0" aria-hidden="true">
-          <circle cx="16" cy="16" r="16" fill={row.color} />
-          <text x="16" y="21" textAnchor="middle" fontSize="12" fontWeight="700" fill={row.ink} fontFamily="Outfit, sans-serif">{row.initials}</text>
-        </svg>
+        <RankAvatar row={row} />
         <b className="text-sm font-semibold">{row.name}</b>
         {row.you ? <span className="rounded-md bg-accent px-1.5 py-0.5 text-[11px] font-bold text-accent-ink">Você</span> : null}
       </div>

@@ -7,5 +7,6 @@ export function createAdminClient() {
   if (!supabaseUrl || !secret) throw new Error("SUPABASE_SECRET_KEY ausente");
   return createClient(supabaseUrl, secret, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
   });
 }

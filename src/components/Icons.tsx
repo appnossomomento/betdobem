@@ -7,6 +7,16 @@ export function Chevron({ dir }: { dir: "left" | "right" | "down" }) {
   );
 }
 
+export function Bell() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-[22px]" aria-hidden="true">
+      <path d="M6 16 V10.5 A6 6 0 0 1 18 10.5 V16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 16.5 H19.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M10 16.5 A2 2 0 0 0 14 16.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Coin() {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" className="shrink-0">

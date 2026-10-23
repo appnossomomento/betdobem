@@ -1,8 +1,17 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { loadDirectory } from "@/lib/admin-data";
 import { TEAMS } from "@/lib/profile-fields";
 
-export default async function UsersPage({ searchParams }: { searchParams: Promise<{ q?: string; vip?: string; banned?: string; team?: string; city?: string }> }) {
+export default function UsersPage({ searchParams }: { searchParams: Promise<{ q?: string; vip?: string; banned?: string; team?: string; city?: string }> }) {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted">Carregando…</p>}>
+      <UsersBody searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function UsersBody({ searchParams }: { searchParams: Promise<{ q?: string; vip?: string; banned?: string; team?: string; city?: string }> }) {
   const query = await searchParams;
   const people = await loadDirectory();
   const q = (query.q ?? "").toLowerCase();

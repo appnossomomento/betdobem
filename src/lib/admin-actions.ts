@@ -22,6 +22,9 @@ function id() {
 export async function setVip(userId: string, vip: boolean) {
   const actor = await adminId();
   if (!actor) return { ok: false as const };
+  const board = await readBoard(true);
+  board.vips = vip ? [...new Set([...board.vips, userId])] : board.vips.filter((id) => id !== userId);
+  await writeBoard(board);
   const admin = createAdminClient();
   await admin.from("profiles").update({ vip }).eq("id", userId);
   await audit(actor, vip ? "vip_on" : "vip_off", userId, {});

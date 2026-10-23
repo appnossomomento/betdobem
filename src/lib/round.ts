@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Champ, OddGame, RoundCard } from "@/data/home";
+import { settleFinished } from "@/lib/settle";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const zone = "America/Sao_Paulo";
@@ -18,7 +19,9 @@ const leagues: { slug: string; champ: Champ; label: string }[] = [
 /** No escopo, sem slug no placar gratuito: Pernambucano, Goiano, Catarinense, Baiano, Cearense, Potiguar. */
 
 type Payload = { games: OddGame[]; cards: RoundCard[] };
-type CacheFile = Payload & { savedAt: number };
+type CacheFile = Payload & { savedAt: number; version: number };
+
+const cacheVersion = 4;
 
 export async function getRound(): Promise<Payload> {
   await connection();
@@ -28,34 +31,47 @@ export async function getRound(): Promise<Payload> {
 async function loadRound(): Promise<Payload> {
   const cached = (await readCache()) ?? (await readRemote());
   const maxAge = cached?.games.some((game) => game.live) ? 10 * 60 * 1000 : freshFor;
-  if (cached && Date.now() - cached.savedAt < maxAge) return { games: cached.games, cards: cached.cards };
+  if (cached && cached.version === cacheVersion && Date.now() - cached.savedAt < maxAge) return deliver(cached);
 
   try {
-    const start = saoPauloDay(new Date());
+    const start = weekStartDay();
+    const endDay = shiftDay(start, 7);
+    const startMs = saoPauloMark(start);
+    const endMs = saoPauloMark(endDay);
     const games: OddGame[] = [];
     const seen = new Set<string>();
     for (const league of leagues) {
-      for (let offset = 0; offset <= 6; offset += 1) {
-        const day = shiftDay(start, offset).replaceAll("-", "");
-        const rows = await scoreboard(league.slug, day);
+      for (let day = start; day <= endDay; day = shiftDay(day, 1)) {
+        const rows = await scoreboard(league.slug, day.replaceAll("-", ""));
         for (const game of rows) {
-          if (seen.has(game.id) || saoPauloDay(new Date(game.kickoff)) < start) continue;
+          const kick = Date.parse(game.kickoff);
+          if (seen.has(game.id) || !Number.isFinite(kick) || kick < startMs || kick >= endMs) continue;
           seen.add(game.id);
           games.push({ ...game, champ: league.champ, competition: league.label });
         }
       }
     }
     games.sort(byKickoff);
-    const cards = games.slice(0, 6).map(toCard);
+    const open = games.filter((game) => !game.finished);
+    const cards = (open.length ? open : games).slice(0, 6).map(toCard);
     const payload = { games, cards };
-    const stamped = { ...payload, savedAt: Date.now() };
+    const stamped = { ...payload, savedAt: Date.now(), version: cacheVersion };
     await writeCache(stamped);
     await writeRemote(stamped);
-    return payload;
+    return deliver(payload);
   } catch (error) {
     console.error(error);
-    return cached ? { games: cached.games, cards: cached.cards } : { games: [], cards: [] };
+    return cached ? deliver(cached) : { games: [], cards: [] };
   }
+}
+
+async function deliver(payload: Payload): Promise<Payload> {
+  try {
+    await settleFinished(payload.games);
+  } catch (error) {
+    console.error(error);
+  }
+  return { games: payload.games, cards: payload.cards };
 }
 
 async function scoreboard(slug: string, day: string): Promise<OddGame[]> {
@@ -74,7 +90,9 @@ function toGame(event: EspnEvent): OddGame | null {
   const away = match.competitors?.find((team) => team.homeAway === "away");
   if (!home || !away) return null;
   const state = match.status?.type?.state;
+  const statusName = match.status?.type?.name ?? "";
   const live = state === "in";
+  const finished = state === "post" && statusName !== "STATUS_POSTPONED" && statusName !== "STATUS_CANCELED" && statusName !== "STATUS_CANCELLED" && statusName !== "STATUS_SUSPENDED";
   const price = match.odds?.[0]?.moneyline;
   return {
     id: String(event.id),
@@ -89,6 +107,7 @@ function toGame(event: EspnEvent): OddGame | null {
     draw: decimal(price?.draw?.close?.odds),
     two: decimal(price?.away?.close?.odds),
     live,
+    finished,
     score: state === "pre" ? "–" : `${home.score ?? 0}–${away.score ?? 0}`,
     kickoff: event.date,
     scores: [],
@@ -134,6 +153,20 @@ function whenLabel(iso: string, live: boolean) {
   return `${name} ${clock}`;
 }
 
+function saoPauloMark(day: string) {
+  const [year, month, date] = day.split("-").map(Number);
+  return Date.UTC(year, month - 1, date, 4, 0, 0);
+}
+
+function weekStartDay(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "short", hour: "2-digit", hourCycle: "h23" }).formatToParts(now);
+  const weekday = parts.find((part) => part.type === "weekday")?.value ?? "Tue";
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+  const sinceTuesday: Record<string, number> = { Tue: 0, Wed: 1, Thu: 2, Fri: 3, Sat: 4, Sun: 5, Mon: 6 };
+  const back = weekday === "Tue" && hour < 1 ? 7 : sinceTuesday[weekday] ?? 0;
+  return shiftDay(saoPauloDay(now), -back);
+}
+
 function saoPauloDay(date: Date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: zone }).format(date);
 }
@@ -149,8 +182,8 @@ async function readRemote(): Promise<CacheFile | null> {
     const admin = createAdminClient();
     const { data } = await admin.from("fixtures_cache").select("payload, saved_at").eq("id", "round").maybeSingle();
     if (!data?.payload) return null;
-    const payload = data.payload as Payload;
-    return { games: payload.games ?? [], cards: payload.cards ?? [], savedAt: Date.parse(data.saved_at) };
+    const payload = data.payload as CacheFile;
+    return { games: payload.games ?? [], cards: payload.cards ?? [], savedAt: Date.parse(data.saved_at), version: payload.version ?? 0 };
   } catch {
     return null;
   }
@@ -189,7 +222,7 @@ type EspnEvent = {
   date: string;
   competitions?: {
     competitors?: { homeAway: string; score?: string; team: { displayName: string; logo: string } }[];
-    status?: { type?: { state?: string } };
+    status?: { type?: { state?: string; name?: string } };
     odds?: { moneyline?: { home?: { close?: { odds?: string } }; draw?: { close?: { odds?: string } }; away?: { close?: { odds?: string } } } }[];
   }[];
 };

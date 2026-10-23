@@ -6,8 +6,8 @@ import { Suspense, createContext, useContext, useEffect, useRef, useState } from
 import type { Account } from "@/lib/account";
 import { saveSlip } from "@/lib/slip-store";
 import { BetProvider, useBet } from "./BetContext";
-import { Coin } from "./Icons";
-import { ScreenFade } from "./ScreenFade";
+import { Bell, Coin } from "./Icons";
+import { PollPopup } from "./PollPopup";
 
 const AccountContext = createContext<Account | null>(null);
 
@@ -31,13 +31,14 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
         <header className="fixed inset-x-0 top-0 z-20 border-b border-line bg-bg pt-[env(safe-area-inset-top)]">
           <div className="mx-auto flex h-14 max-w-[1120px] items-center justify-between px-4 min-[880px]:px-6">
             <img src="/logo-bet-do-bem/LogoPrincipal-completo.png" alt="BETdoBEM" className="h-12 w-auto max-w-[52vw]" />
-            <Balance initials={account?.initials ?? null} unread={account?.unread ?? 0} />
+            <Balance initials={account?.initials ?? null} avatarUrl={account?.avatarUrl ?? ""} unread={account?.unread ?? 0} />
           </div>
         </header>
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 pt-[calc(56px+env(safe-area-inset-top)+16px)] pb-4 min-[880px]:px-6 min-[880px]:pb-5">
-          <ScreenFade>{children}</ScreenFade>
+          {children}
         </div>
         <Slip />
+        <PollPopup signedIn={Boolean(account)} />
         <Suspense fallback={<nav className="fixed inset-x-0 bottom-0 z-10 h-16 border-t border-line bg-nav" aria-label="Menu principal" />}>
           <BottomNav items={items} />
         </Suspense>
@@ -46,19 +47,21 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
   );
 }
 
-function Balance({ initials, unread }: { initials: string | null; unread: number }) {
+function Balance({ initials, avatarUrl, unread }: { initials: string | null; avatarUrl: string; unread: number }) {
   const { balance, signedIn } = useBet();
   if (!signedIn || !initials) {
     return <Link href="/" className="rounded-full bg-accent px-3 py-1.5 text-sm font-bold text-accent-ink">Entrar</Link>;
   }
   return (
     <div className="flex items-center gap-2.5">
-      <Link href="/avisos" className="relative text-sm font-bold text-ink" aria-label="Avisos">
-        Sino
-        {unread > 0 ? <span className="absolute -top-2 -right-3 grid min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] text-accent-ink">{unread}</span> : null}
+      <Link href="/avisos" className="relative grid size-8 place-items-center text-ink" aria-label="Avisos">
+        <Bell />
+        {unread > 0 ? <span className="absolute -top-1 -right-1 grid min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] text-accent-ink">{unread}</span> : null}
       </Link>
       <span className="inline-flex items-center gap-1 text-[15px] font-bold tabular-nums"><Coin />{coins(balance)}</span>
-      <Link href="/perfil" className="grid size-[34px] place-items-center rounded-full bg-accent text-[13px] font-bold text-accent-ink">{initials}</Link>
+      <Link href="/perfil" aria-label="Perfil" className="grid size-[34px] place-items-center overflow-hidden rounded-full bg-accent text-[13px] font-bold text-accent-ink">
+        {avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : initials}
+      </Link>
     </div>
   );
 }
@@ -101,6 +104,8 @@ const placeError = {
   grava: "Não foi possível enviar.",
   suspensa: "Conta suspensa.",
   repetida: "Essa aposta já foi enviada.",
+  fechado: "O mercado desse jogo fechou.",
+  dia: "O mercado abre à meia-noite do dia do jogo.",
 } as const;
 
 function Ticket({ on, onClose }: { on: boolean; onClose: () => void }) {

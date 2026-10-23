@@ -55,7 +55,7 @@ export async function loadDirectory(): Promise<DirectoryUser[]> {
       team: text(profile?.favorite_team, meta.favorite_team),
       shirt: text(profile?.shirt_size, meta.shirt_size),
       bottom: text(profile?.bottom_size, meta.bottom_size),
-      vip: Boolean(profile?.vip),
+      vip: board.vips.includes(user.id),
       balance: Math.round((balances.get(user.id) ?? 0) * 100) / 100,
       bets: betCount.get(user.id) ?? 0,
       lastBetAt: lastBet.get(user.id) ?? null,

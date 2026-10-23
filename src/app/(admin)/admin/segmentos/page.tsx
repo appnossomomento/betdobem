@@ -1,7 +1,16 @@
+import { Suspense } from "react";
 import { SegmentForm } from "@/components/AdminForms";
 import { readBoard } from "@/lib/admin-store";
 
-export default async function SegmentsPage() {
+export default function SegmentsPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted">Carregando…</p>}>
+      <SegmentsBody />
+    </Suspense>
+  );
+}
+
+async function SegmentsBody() {
   const board = await readBoard();
   return (
     <div>

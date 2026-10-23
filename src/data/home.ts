@@ -36,6 +36,7 @@ export type OddGame = {
   draw: number | null;
   two: number | null;
   live: boolean;
+  finished: boolean;
   score: string;
   kickoff: string;
   scores: ScorePick[];
@@ -50,6 +51,7 @@ export type RankRow = {
   points: number;
   color: string;
   ink: string;
+  avatarUrl?: string;
 };
 
 export type LeagueVisibility = "publica" | "privada";

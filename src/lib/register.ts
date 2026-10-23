@@ -1,12 +1,13 @@
 "use server";
 
-import { initialsFrom, checkProfile, type ProfileInput } from "@/lib/profile-fields";
+import { initialsFrom, checkCpf, checkProfile, cpfDigits, type ProfileInput } from "@/lib/profile-fields";
 import { isAdminEmail } from "@/lib/admins";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function registerAccount(input: ProfileInput & { email: string; password: string }) {
-  const problem = checkProfile(input);
+export async function registerAccount(input: ProfileInput & { email: string; password: string; cpf: string }) {
+  const problem = checkProfile(input) || checkCpf(input.cpf);
   if (problem) return { ok: false as const, error: problem };
+  const cpf = cpfDigits(input.cpf);
   const email = input.email.trim().toLowerCase();
   if (!email.includes("@") || input.password.length < 6) return { ok: false as const, error: "E-mail ou senha inválidos." };
 
@@ -23,6 +24,7 @@ export async function registerAccount(input: ProfileInput & { email: string; pas
     favorite_team: input.favoriteTeam,
     shirt_size: input.shirtSize,
     bottom_size: input.bottomSize,
+    cpf,
   };
   const { data, error } = await admin.auth.admin.createUser({
     email,

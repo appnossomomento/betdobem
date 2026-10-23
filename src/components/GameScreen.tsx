@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { oddFor, phraseFor, type OddGame, type Side } from "@/data/home";
+import { kickoffDay, marketOpen, marketOpenLabel } from "@/lib/market";
 import { useBet } from "./BetContext";
+import { useMarketNow } from "./MarketClock";
 
 export function GameScreen({ game }: { game: OddGame | null }) {
   if (!game) {
@@ -18,9 +20,13 @@ export function GameScreen({ game }: { game: OddGame | null }) {
 
 function GameBet({ game }: { game: OddGame }) {
   const { picks, choose } = useBet();
+  const now = useMarketNow();
+  const day = kickoffDay(game.kickoff, now);
+  const open = day === "today" && marketOpen(game.kickoff, now);
   const selected = picks[game.id]?.key;
 
   function chooseSide(side: Side) {
+    if (kickoffDay(game.kickoff) !== "today" || !marketOpen(game.kickoff)) return;
     const odd = oddFor(game, side);
     if (odd == null) return;
     choose(game.id, { key: side, odd, phrase: phraseFor(game, side), competition: game.competition, when: game.when });
@@ -41,15 +47,37 @@ function GameBet({ game }: { game: OddGame }) {
           </h1>
           <p className="mt-1 text-[13px] text-muted">{game.when}</p>
         </div>
+        {game.live ? <span className="rounded-full bg-accent px-2 py-1 text-xs font-semibold text-accent-ink">Ao vivo</span> : null}
       </div>
-
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        {game.one != null ? <OddButton side="1" value={game.one} selected={selected === "1"} onChoose={() => chooseSide("1")} /> : null}
-        {game.draw != null ? <OddButton side="X" value={game.draw} selected={selected === "X"} onChoose={() => chooseSide("X")} /> : null}
-        {game.two != null ? <OddButton side="2" value={game.two} selected={selected === "2"} onChoose={() => chooseSide("2")} /> : null}
-      </div>
+      {game.finished ? <p className="mt-5 text-[28px] font-bold tabular-nums">{game.score}</p> : day === "future" ? (
+        <div className="mt-5">
+          <div className="grid grid-cols-3 gap-2">
+            {game.one != null ? <QuietOdd side="1" value={game.one} /> : null}
+            {game.draw != null ? <QuietOdd side="X" value={game.draw} /> : null}
+            {game.two != null ? <QuietOdd side="2" value={game.two} /> : null}
+          </div>
+          <p className="mt-3 text-center text-sm font-semibold text-[#a56b6e]">{marketOpenLabel(game.kickoff)}</p>
+        </div>
+      ) : open ? (
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          {game.one != null ? <OddButton side="1" value={game.one} selected={selected === "1"} onChoose={() => chooseSide("1")} /> : null}
+          {game.draw != null ? <OddButton side="X" value={game.draw} selected={selected === "X"} onChoose={() => chooseSide("X")} /> : null}
+          {game.two != null ? <OddButton side="2" value={game.two} selected={selected === "2"} onChoose={() => chooseSide("2")} /> : null}
+        </div>
+      ) : (
+        <p className="mt-5 text-sm font-semibold text-muted">Mercado fechado</p>
+      )}
 
     </section>
+  );
+}
+
+function QuietOdd({ side, value }: { side: Side; value: number }) {
+  return (
+    <span className="rounded-lg bg-card-2 px-1 py-2 text-center text-sm font-bold text-accent tabular-nums">
+      <small className="mb-0.5 block text-[10px] font-semibold text-muted">{side}</small>
+      {value.toFixed(2)}
+    </span>
   );
 }
 

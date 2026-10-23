@@ -1,7 +1,9 @@
 import "server-only";
 import { connection } from "next/server";
+import { publicAvatar } from "@/lib/avatar-url";
 import { isAdminEmail } from "@/lib/admins";
 import { readBoard } from "@/lib/admin-store";
+import { ensureMarketNotice } from "@/lib/market-notice";
 import { createClient } from "@/lib/supabase/server";
 
 export type Account = {
@@ -18,6 +20,8 @@ export type Account = {
   favoriteTeam: string;
   shirtSize: string;
   bottomSize: string;
+  cpf: string;
+  avatarUrl: string;
   unread: number;
 };
 
@@ -41,6 +45,11 @@ export async function getAccount(): Promise<Account | null> {
     const profile = basic.data;
     const { data: rows } = await supabase.from("ledger").select("amount").eq("user_id", user.id);
     const balance = (rows ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
+    try {
+      await ensureMarketNotice();
+    } catch (error) {
+      console.error(error);
+    }
     const board = await readBoard();
     const banned = board.banned.includes(user.id) || Boolean(profile && "banned_at" in profile && profile.banned_at);
     const unread = board.notices.filter((notice) => notice.recipients.includes(user.id) && !notice.reads.some((item) => item.userId === user.id)).length;
@@ -51,7 +60,7 @@ export async function getAccount(): Promise<Account | null> {
       initials: text(profile?.initials, meta.initials) || "JB",
       displayName: text(profile?.display_name, meta.nick, meta.display_name) || "Jogador",
       balance,
-      vip: Boolean(profile?.vip),
+      vip: board.vips.includes(user.id),
       admin: isAdminEmail(user.email),
       banned,
       age: numberOrNull(profile && "age" in profile ? profile.age : meta.age),
@@ -59,6 +68,8 @@ export async function getAccount(): Promise<Account | null> {
       favoriteTeam: text(profile && "favorite_team" in profile ? profile.favorite_team : undefined, meta.favorite_team),
       shirtSize: text(profile?.shirt_size, meta.shirt_size),
       bottomSize: text(profile && "bottom_size" in profile ? profile.bottom_size : undefined, meta.bottom_size),
+      cpf: text(meta.cpf),
+      avatarUrl: publicAvatar(profile && "avatar_url" in profile ? profile.avatar_url : undefined) || publicAvatar(meta.avatar_url),
       unread,
     };
   } catch {
