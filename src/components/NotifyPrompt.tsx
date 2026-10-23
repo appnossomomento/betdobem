@@ -9,6 +9,15 @@ export function NotifyPrompt({ signedIn }: { signedIn: boolean }) {
   const [note, setNote] = useState("");
 
   useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!signedIn || !standalone()) return;
     if (!("Notification" in window) || Notification.permission !== "default") return;
     if (localStorage.getItem("betdobem.push.negado") === "1") return;
@@ -49,9 +58,9 @@ export function NotifyPrompt({ signedIn }: { signedIn: boolean }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-black/70 px-4 pb-[calc(88px+env(safe-area-inset-bottom))] min-[880px]:place-items-center min-[880px]:pb-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="notificar-titulo" className="fixed inset-0 z-[80] grid place-items-center bg-black/50 px-4">
       <section className="w-full max-w-md rounded-[18px] border border-line bg-card p-5">
-        <h2 className="text-lg tracking-tight">Ativar notificações</h2>
+        <h2 id="notificar-titulo" className="text-lg tracking-tight">Ativar notificações</h2>
         <p className="mt-2 text-sm text-muted">O aviso de mercado aberto e o de partidas iniciando chegam neste app.</p>
         {note ? <p className="mt-3 text-sm">{note}</p> : null}
         <div className="mt-4 flex gap-2">

@@ -24,6 +24,15 @@ export function InstallPrompt({ signedIn }: { signedIn: boolean }) {
   const [canInstall, setCanInstall] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!signedIn) return;
     if (installPromptWillShow(true)) sessionStorage.removeItem("betdobem.enquete");
     if (!installPromptWillShow(true)) return;
@@ -63,10 +72,10 @@ export function InstallPrompt({ signedIn }: { signedIn: boolean }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-black/70 px-4 pb-[calc(88px+env(safe-area-inset-bottom))] min-[880px]:place-items-center min-[880px]:pb-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="instalar-titulo" className="fixed inset-0 z-[80] grid place-items-center bg-black/50 px-4">
       <section className="w-full max-w-md rounded-[18px] border border-line bg-card p-5">
         <p className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">Instalar</p>
-        <h2 className="mt-1 text-lg tracking-tight">Coloque o BETdoBEM na tela de início</h2>
+        <h2 id="instalar-titulo" className="mt-1 text-lg tracking-tight">Coloque o BETdoBEM na tela de início</h2>
         <p className="mt-3 text-sm">{list[step]}</p>
         <p className="mt-2 text-xs text-muted tabular-nums">{step + 1} de {list.length}</p>
         <div className="mt-4 flex gap-2">
