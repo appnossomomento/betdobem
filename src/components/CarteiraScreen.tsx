@@ -41,8 +41,9 @@ export function CarteiraScreen({ balance, bets, ledger }: { balance: number; bet
 }
 
 function Stat({ label, value, glow = false }: { label: string; value: number; glow?: boolean }) {
+  const rim = !glow ? "border-line" : value < 0 ? "border-[#c4292e]/80 shadow-[0_0_16px_rgba(196,41,46,0.28)]" : "border-[#d6f25c]/80 shadow-[0_0_16px_rgba(214,242,92,0.28)]";
   return (
-    <article className={`flex min-h-20 min-w-0 flex-col gap-2 rounded-[18px] border bg-card px-3 py-3 min-[880px]:min-h-24 min-[880px]:px-4 ${glow ? "border-[#d6f25c]/80 shadow-[0_0_16px_rgba(214,242,92,0.28)]" : "border-line"}`}>
+    <article className={`flex min-h-20 min-w-0 flex-col gap-2 rounded-[18px] border bg-card px-3 py-3 min-[880px]:min-h-24 min-[880px]:px-4 ${rim}`}>
       <p className="text-xs font-semibold leading-tight text-muted">{label}</p>
       <p className="inline-flex items-center gap-1.5 text-2xl font-bold leading-none tabular-nums min-[880px]:text-3xl"><Coin />{money(value)}</p>
     </article>
