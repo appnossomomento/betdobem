@@ -83,7 +83,9 @@ async function loadLeagues(viewerId: string, people: Person[]) {
     const history = (events ?? []).filter((event) => event.league_id === league.id);
     const rows = roster.map((member, index) => {
       const person = byId.get(member.user_id);
-      const points = history.filter((event) => event.user_id === member.user_id && Date.parse(event.at) >= Date.parse(league.created_at)).reduce((sum, event) => sum + Number(event.coins), 0);
+      const closed = history.filter((event) => event.user_id === member.user_id && Date.parse(event.at) >= Date.parse(league.created_at)).reduce((sum, event) => sum + Number(event.coins), 0);
+      // A terça guarda o saldo e devolve a banca a 50. Até lá, a liga usa esse mesmo saldo.
+      const points = Math.round((closed + (person?.balance ?? 0)) * 100) / 100;
       return {
         place: index + 1,
         initials: person?.initials ?? "??",
