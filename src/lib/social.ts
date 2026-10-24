@@ -2,7 +2,7 @@ import "server-only";
 import type { League, RankRow } from "@/data/home";
 import { readBoard } from "@/lib/admin-store";
 import { publicAvatar } from "@/lib/avatar-url";
-import { monthKey } from "@/lib/economy";
+import { MARCO_ZERO_COINS, monthKey } from "@/lib/economy";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const colors = ["#d6f25c", "#8eb6ff", "#f2a0c0", "#f0c36a", "#8fd0b5", "#c4a6f5", "#f0a07a"];
@@ -52,21 +52,31 @@ export async function loadPeople(): Promise<Person[]> {
 function rank(people: Person[], viewerId: string): RankRow[] {
   return people
     .filter((person) => person.balance !== 0 || person.id === viewerId)
-    .sort((a, b) => b.balance - a.balance || a.nick.localeCompare(b.nick, "pt-BR"))
-    .map((person, index) => row(person, index, viewerId, person.balance));
+    .sort((a, b) => profit(b.balance) - profit(a.balance) || a.nick.localeCompare(b.nick, "pt-BR"))
+    .map((person, index) => row(person, index, viewerId, profit(person.balance)));
 }
 
 async function loadMonthly(people: Person[], viewerId: string): Promise<RankRow[]> {
   const admin = createAdminClient();
   const month = monthKey();
-  const { data, error } = await admin.from("month_capitals").select("user_id, capital, month_key").eq("month_key", month);
+  const { data: weeks, error: weeksError } = await admin.from("weeks").select("week_key, reset_at");
+  if (weeksError || !weeks?.length) return [];
+  const keys = weeks.filter((week) => monthKey(new Date(week.reset_at)) === month).map((week) => week.week_key);
+  if (!keys.length) return [];
+  const { data, error } = await admin.from("week_capitals").select("user_id, capital").in("week_key", keys);
   if (error || !data?.length) return [];
+  const totals = new Map<string, number>();
+  for (const item of data) totals.set(item.user_id, (totals.get(item.user_id) ?? 0) + profit(Number(item.capital)));
   const byId = new Map(people.map((person) => [person.id, person]));
-  return data
-    .map((item) => ({ person: byId.get(item.user_id), capital: Number(item.capital) }))
-    .filter((item): item is { person: Person; capital: number } => Boolean(item.person))
-    .sort((a, b) => b.capital - a.capital || a.person.nick.localeCompare(b.person.nick, "pt-BR"))
-    .map((item, index) => row(item.person, index, viewerId, item.capital));
+  return [...totals]
+    .map(([userId, points]) => ({ person: byId.get(userId), points: Math.round(points * 100) / 100 }))
+    .filter((item): item is { person: Person; points: number } => Boolean(item.person))
+    .sort((a, b) => b.points - a.points || a.person.nick.localeCompare(b.person.nick, "pt-BR"))
+    .map((item, index) => row(item.person, index, viewerId, item.points));
+}
+
+function profit(capital: number) {
+  return Math.round((capital - MARCO_ZERO_COINS) * 100) / 100;
 }
 
 async function loadLeagues(viewerId: string, people: Person[]) {
