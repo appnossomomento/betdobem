@@ -173,9 +173,9 @@ function RoundStrip({ cards }: { cards: RoundCard[] }) {
         <button type="button" aria-label="Jogo anterior" onClick={() => go(-1)} className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-card-2 text-ink">
           <Chevron dir="left" />
         </button>
-        <div ref={scroller} className="flex min-w-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div ref={scroller} className={`flex min-w-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${cards.some((card) => card.live) ? "px-1 py-3" : ""}`}>
           {cards.map((card) => (
-            <Link key={card.id} href={`/jogo/${card.id}`} className="flex w-[min(100%,320px)] shrink-0 snap-center flex-col gap-3 rounded-[18px] border border-line bg-card p-4 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+            <Link key={card.id} href={`/jogo/${card.id}`} className={`flex w-[min(100%,320px)] shrink-0 snap-center flex-col gap-3 rounded-[18px] border bg-card p-4 ${card.live ? "border-[#d6f25c]/80 shadow-[0_0_16px_rgba(214,242,92,0.28)]" : "border-line shadow-[0_10px_28px_rgba(0,0,0,0.28)]"}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">{card.league}</span>
                 <span className={`rounded-full px-2 py-1 text-xs font-semibold ${card.live ? "bg-accent text-accent-ink" : "bg-card-2 text-ink"}`}>{card.live ? liveLabel(card.clock) : "Pré-jogo"}</span>
