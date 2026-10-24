@@ -30,8 +30,9 @@ export async function GET(request: Request) {
     if (balance !== 0) await admin.from("ledger").insert({ user_id: profile.id, kind: "reset", amount: -balance, week_key: week });
     await admin.from("ledger").insert({ user_id: profile.id, kind: "marco_zero", amount: MARCO_ZERO_COINS, week_key: week });
     const { data: memberships } = await admin.from("league_members").select("league_id").eq("user_id", profile.id);
+    const weekGain = profitOf(balance);
     for (const membership of memberships ?? []) {
-      await admin.from("league_capital_events").insert({ league_id: membership.league_id, user_id: profile.id, coins: balance });
+      await admin.from("league_capital_events").insert({ league_id: membership.league_id, user_id: profile.id, coins: weekGain });
     }
     reset += 1;
   }

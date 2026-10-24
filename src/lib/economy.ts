@@ -27,22 +27,37 @@ export function monthKey(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: ZONE, year: "numeric", month: "2-digit" }).format(date).slice(0, 7);
 }
 
-/** O que passou das 50 moedas iniciais. */
+/** O que passou das 50 moedas iniciais (fechamento de semana / ranking legado). */
 export function profitOf(capital: number) {
   return Math.round((capital - MARCO_ZERO_COINS) * 100) / 100;
 }
 
-/** Lucro das semanas já fechadas neste mês, mais o lucro da semana aberta. */
-export function monthProfit(balance: number, entries: { kind: string; amount: number; created_at: string }[], now = new Date()) {
-  const month = monthKey(now);
-  const closed = entries.reduce((sum, entry) => {
-    if (entry.kind !== "reset" || monthKey(new Date(entry.created_at)) !== month) return sum;
-    return sum + profitOf(-Number(entry.amount));
-  }, 0);
-  return Math.round((closed + profitOf(balance)) * 100) / 100;
+type ProfitBet = { stake: number; potential_return: number; status: string; week_key?: string | null; placed_at?: string | null };
+
+/** Lucro de uma aposta encerrada. Aberta e anulada não mexem. Perdida deduz a stake. */
+export function betProfit(bet: ProfitBet) {
+  if (bet.status === "won") return Math.round((Number(bet.potential_return) - Number(bet.stake)) * 100) / 100;
+  if (bet.status === "lost") return Math.round(-Number(bet.stake) * 100) / 100;
+  return 0;
 }
 
-/** Lucro acumulado: semanas já guardadas em profiles.saldo_total + semana aberta. */
-export function totalSaldo(closed: number, balance: number) {
-  return Math.round((closed + profitOf(balance)) * 100) / 100;
+export function settledProfit(bets: ProfitBet[]) {
+  return Math.round(bets.reduce((sum, bet) => sum + betProfit(bet), 0) * 100) / 100;
+}
+
+/** Lucro da semana: parte de zero; apostas abertas não entram. */
+export function weekProfit(bets: ProfitBet[], now = new Date()) {
+  const week = weekKey(now);
+  return settledProfit(bets.filter((bet) => (bet.week_key || weekKey(new Date(bet.placed_at || now))) === week));
+}
+
+/** Lucro do mês: parte de zero; só apostas já liquidadas do mês. */
+export function monthProfit(bets: ProfitBet[], now = new Date()) {
+  const month = monthKey(now);
+  return settledProfit(bets.filter((bet) => monthKey(new Date(bet.placed_at || now)) === month));
+}
+
+/** Lucro acumulado: semanas fechadas em profiles.saldo_total + lucro liquidado da semana aberta. */
+export function totalSaldo(closed: number, openWeekProfit: number) {
+  return Math.round((closed + openWeekProfit) * 100) / 100;
 }

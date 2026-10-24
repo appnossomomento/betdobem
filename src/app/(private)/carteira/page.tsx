@@ -19,7 +19,7 @@ async function CarteiraRoute() {
   const account = await getAccount();
   const supabase = await createClient();
   const [{ data: bets }, { data: ledger }, round] = await Promise.all([
-    supabase.from("bets").select("id, stake, combined_odd, potential_return, status, placed_at, bet_legs(phrase, odd, result, fixture_id, selection_key)").eq("user_id", account?.id ?? "").order("placed_at", { ascending: false }),
+    supabase.from("bets").select("id, stake, combined_odd, potential_return, status, placed_at, week_key, bet_legs(phrase, odd, result, fixture_id, selection_key)").eq("user_id", account?.id ?? "").order("placed_at", { ascending: false }),
     supabase.from("ledger").select("id, kind, amount, created_at").eq("user_id", account?.id ?? "").order("created_at", { ascending: false }),
     getRound(),
   ]);

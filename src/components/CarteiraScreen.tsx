@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { monthProfit, profitOf, totalSaldo } from "@/lib/economy";
+import { monthProfit, totalSaldo, weekProfit } from "@/lib/economy";
 import { Chevron, Coin } from "./Icons";
 
 type Crest = { homeLogo: string; awayLogo: string };
 type Leg = { phrase: string; odd: number; result: string | null; fixture_id?: string; selection_key?: string };
-type Bet = { id: string; stake: number; combined_odd: number; potential_return: number; status: string; placed_at: string; bet_legs: Leg[] };
+type Bet = { id: string; stake: number; combined_odd: number; potential_return: number; status: string; placed_at: string; week_key?: string; bet_legs: Leg[] };
 type Entry = { id: string; kind: string; amount: number; created_at: string };
 
 const statusLabel: Record<string, string> = { open: "Aberta", won: "Ganha", lost: "Perdida", void: "Anulada" };
@@ -27,9 +27,9 @@ export function CarteiraScreen({
 }) {
   const open = bets.filter((bet) => bet.status === "open");
   const done = bets.filter((bet) => bet.status !== "open");
-  const weekly = profitOf(balance);
-  const monthly = monthProfit(balance, ledger);
-  const total = totalSaldo(closedSaldo, balance);
+  const weekly = weekProfit(bets);
+  const monthly = monthProfit(bets);
+  const total = totalSaldo(closedSaldo, weekly);
   const recent = ledger.slice(0, 6);
   return (
     <div className="flex flex-col gap-4">

@@ -2,18 +2,18 @@ import "server-only";
 import type { League, RankRow } from "@/data/home";
 import { readBoard } from "@/lib/admin-store";
 import { publicAvatar } from "@/lib/avatar-url";
-import { monthKey, profitOf } from "@/lib/economy";
+import { MARCO_ZERO_COINS, monthProfit, profitOf, weekProfit } from "@/lib/economy";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const colors = ["#d6f25c", "#8eb6ff", "#f2a0c0", "#f0c36a", "#8fd0b5", "#c4a6f5", "#f0a07a"];
 const inks = ["#1a2208", "#102033", "#3a1020", "#2a1c08", "#102820", "#241433", "#2a140c"];
 
-type Person = { id: string; nick: string; initials: string; balance: number; avatarUrl: string };
+type Person = { id: string; nick: string; initials: string; balance: number; profit: number; month: number; avatarUrl: string };
 
 export async function loadSocial(viewerId: string) {
   const people = await loadPeople();
-  const weekly = rank(people, viewerId);
-  const monthly = await loadMonthly(people, viewerId);
+  const weekly = rank(people, viewerId, "profit");
+  const monthly = rank(people, viewerId, "month");
   const { mine, open } = await loadLeagues(viewerId, people);
   return { weekly, monthly, mine, open };
 }
@@ -35,44 +35,37 @@ export async function loadPeople(): Promise<Person[]> {
   const admin = createAdminClient();
   const { data: profiles } = await admin.from("profiles").select("id, display_name, initials, avatar_url");
   const { data: ledger } = await admin.from("ledger").select("user_id, amount");
+  const { data: bets } = await admin.from("bets").select("user_id, stake, potential_return, status, week_key, placed_at");
   const balances = new Map<string, number>();
   for (const row of ledger ?? []) balances.set(row.user_id, (balances.get(row.user_id) ?? 0) + Number(row.amount));
+  const bag = new Map<string, NonNullable<typeof bets>>();
+  for (const bet of bets ?? []) {
+    const list = bag.get(bet.user_id) ?? [];
+    list.push(bet);
+    bag.set(bet.user_id, list);
+  }
   const board = await readBoard();
   return (profiles ?? [])
     .filter((profile) => !board.banned.includes(profile.id))
-    .map((profile) => ({
-      id: profile.id,
-      nick: profile.display_name,
-      initials: profile.initials,
-      avatarUrl: publicAvatar(profile.avatar_url),
-      balance: Math.round((balances.get(profile.id) ?? 0) * 100) / 100,
-    }));
+    .map((profile) => {
+      const mine = bag.get(profile.id) ?? [];
+      return {
+        id: profile.id,
+        nick: profile.display_name,
+        initials: profile.initials,
+        avatarUrl: publicAvatar(profile.avatar_url),
+        balance: Math.round((balances.get(profile.id) ?? 0) * 100) / 100,
+        profit: weekProfit(mine),
+        month: monthProfit(mine),
+      };
+    });
 }
 
-function rank(people: Person[], viewerId: string): RankRow[] {
+function rank(people: Person[], viewerId: string, field: "profit" | "month"): RankRow[] {
   return people
-    .filter((person) => person.balance !== 0 || person.id === viewerId)
-    .sort((a, b) => profitOf(b.balance) - profitOf(a.balance) || a.nick.localeCompare(b.nick, "pt-BR"))
-    .map((person, index) => row(person, index, viewerId, profitOf(person.balance)));
-}
-
-async function loadMonthly(people: Person[], viewerId: string): Promise<RankRow[]> {
-  const admin = createAdminClient();
-  const month = monthKey();
-  const { data: weeks, error: weeksError } = await admin.from("weeks").select("week_key, reset_at");
-  if (weeksError || !weeks?.length) return [];
-  const keys = weeks.filter((week) => monthKey(new Date(week.reset_at)) === month).map((week) => week.week_key);
-  if (!keys.length) return [];
-  const { data, error } = await admin.from("week_capitals").select("user_id, capital").in("week_key", keys);
-  if (error || !data?.length) return [];
-  const totals = new Map<string, number>();
-  for (const item of data) totals.set(item.user_id, (totals.get(item.user_id) ?? 0) + profitOf(Number(item.capital)));
-  const byId = new Map(people.map((person) => [person.id, person]));
-  return [...totals]
-    .map(([userId, points]) => ({ person: byId.get(userId), points: Math.round(points * 100) / 100 }))
-    .filter((item): item is { person: Person; points: number } => Boolean(item.person))
-    .sort((a, b) => b.points - a.points || a.person.nick.localeCompare(b.person.nick, "pt-BR"))
-    .map((item, index) => row(item.person, index, viewerId, item.points));
+    .filter((person) => person[field] !== 0 || person.balance !== 0 || person.id === viewerId)
+    .sort((a, b) => b[field] - a[field] || a.nick.localeCompare(b.nick, "pt-BR"))
+    .map((person, index) => row(person, index, viewerId, person[field]));
 }
 
 async function loadLeagues(viewerId: string, people: Person[]) {
@@ -89,8 +82,11 @@ async function loadLeagues(viewerId: string, people: Person[]) {
     const history = (events ?? []).filter((event) => event.league_id === league.id);
     const rows = roster.map((member, index) => {
       const person = byId.get(member.user_id);
-      const closed = history.filter((event) => event.user_id === member.user_id && Date.parse(event.at) >= Date.parse(league.created_at)).reduce((sum, event) => sum + profitOf(Number(event.coins)), 0);
-      const points = Math.round((closed + (person ? profitOf(person.balance) : 0)) * 100) / 100;
+      const closed = history
+        .filter((event) => event.user_id === member.user_id && Date.parse(event.at) >= Date.parse(league.created_at))
+        .reduce((sum, event) => sum + leagueEventProfit(Number(event.coins)), 0);
+      // Mesmo lucro da semana do ranking (apostas encerradas, base zero).
+      const points = Math.round((closed + (person?.profit ?? 0)) * 100) / 100;
       return {
         place: index + 1,
         initials: person?.initials ?? "??",
@@ -120,6 +116,11 @@ async function loadLeagues(viewerId: string, people: Person[]) {
     mine: mapped.filter((league) => mineIds.has(league.id ?? "") || league.hosted),
     open: mapped.filter((league) => league.visibility === "publica" && !mineIds.has(league.id ?? "") && !league.hosted),
   };
+}
+
+/** Eventos novos guardam lucro puro. Os antigos guardavam a carteira (≥ ~30). */
+function leagueEventProfit(coins: number) {
+  return coins >= MARCO_ZERO_COINS * 0.6 ? profitOf(coins) : coins;
 }
 
 function row(person: Person, index: number, viewerId: string, points: number): RankRow {
