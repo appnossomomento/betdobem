@@ -14,7 +14,7 @@ import {
 } from "@/data/home";
 import { LivePulse } from "./LivePulse";
 import { RankAvatar } from "./RankAvatar";
-import { marketOpen } from "@/lib/market";
+import { kickoffDay, marketOpen } from "@/lib/market";
 import { useMarketNow } from "./MarketClock";
 import { Chevron, Coin } from "./Icons";
 
@@ -29,7 +29,7 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
   const now = useMarketNow();
   const rows = period === "Semanal" ? weeklyRows : monthlyRows;
   const filter = champs[champ].id;
-  const today = games.filter((game) => !game.finished && game.when.startsWith("hoje") && (filter === "todos" || game.champ === filter));
+  const today = games.filter((game) => !game.finished && kickoffDay(game.kickoff, now) === "today" && (filter === "todos" || game.champ === filter));
 
   useEffect(() => {
     oddsScrollRef.current?.scrollTo({ top: 0 });

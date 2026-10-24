@@ -128,7 +128,13 @@ async function deliver(payload: Payload): Promise<Payload> {
   } catch (error) {
     console.error(error);
   }
-  return { games: payload.games, cards: payload.cards };
+  return retitle(payload);
+}
+
+function retitle(payload: Payload): Payload {
+  const games = payload.games.map((game) => ({ ...game, when: whenLabel(game.kickoff, game.live) }));
+  const whenOf = new Map(games.map((game) => [game.id, game.when]));
+  return { games, cards: payload.cards.map((card) => ({ ...card, when: whenOf.get(card.id) ?? card.when })) };
 }
 
 async function scoreboard(slug: string, day: string): Promise<OddGame[]> {
