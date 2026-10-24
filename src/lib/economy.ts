@@ -26,3 +26,18 @@ export function weekKey(date = new Date()) {
 export function monthKey(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: ZONE, year: "numeric", month: "2-digit" }).format(date).slice(0, 7);
 }
+
+/** O que passou das 50 moedas iniciais. */
+export function profitOf(capital: number) {
+  return Math.round((capital - MARCO_ZERO_COINS) * 100) / 100;
+}
+
+/** Lucro das semanas já fechadas neste mês, mais o lucro da semana aberta. */
+export function monthProfit(balance: number, entries: { kind: string; amount: number; created_at: string }[], now = new Date()) {
+  const month = monthKey(now);
+  const closed = entries.reduce((sum, entry) => {
+    if (entry.kind !== "reset" || monthKey(new Date(entry.created_at)) !== month) return sum;
+    return sum + profitOf(-Number(entry.amount));
+  }, 0);
+  return Math.round((closed + profitOf(balance)) * 100) / 100;
+}

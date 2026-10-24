@@ -2,7 +2,7 @@ import "server-only";
 import type { League, RankRow } from "@/data/home";
 import { readBoard } from "@/lib/admin-store";
 import { publicAvatar } from "@/lib/avatar-url";
-import { MARCO_ZERO_COINS, monthKey } from "@/lib/economy";
+import { monthKey, profitOf } from "@/lib/economy";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const colors = ["#d6f25c", "#8eb6ff", "#f2a0c0", "#f0c36a", "#8fd0b5", "#c4a6f5", "#f0a07a"];
@@ -52,8 +52,8 @@ export async function loadPeople(): Promise<Person[]> {
 function rank(people: Person[], viewerId: string): RankRow[] {
   return people
     .filter((person) => person.balance !== 0 || person.id === viewerId)
-    .sort((a, b) => profit(b.balance) - profit(a.balance) || a.nick.localeCompare(b.nick, "pt-BR"))
-    .map((person, index) => row(person, index, viewerId, profit(person.balance)));
+    .sort((a, b) => profitOf(b.balance) - profitOf(a.balance) || a.nick.localeCompare(b.nick, "pt-BR"))
+    .map((person, index) => row(person, index, viewerId, profitOf(person.balance)));
 }
 
 async function loadMonthly(people: Person[], viewerId: string): Promise<RankRow[]> {
@@ -66,17 +66,13 @@ async function loadMonthly(people: Person[], viewerId: string): Promise<RankRow[
   const { data, error } = await admin.from("week_capitals").select("user_id, capital").in("week_key", keys);
   if (error || !data?.length) return [];
   const totals = new Map<string, number>();
-  for (const item of data) totals.set(item.user_id, (totals.get(item.user_id) ?? 0) + profit(Number(item.capital)));
+  for (const item of data) totals.set(item.user_id, (totals.get(item.user_id) ?? 0) + profitOf(Number(item.capital)));
   const byId = new Map(people.map((person) => [person.id, person]));
   return [...totals]
     .map(([userId, points]) => ({ person: byId.get(userId), points: Math.round(points * 100) / 100 }))
     .filter((item): item is { person: Person; points: number } => Boolean(item.person))
     .sort((a, b) => b.points - a.points || a.person.nick.localeCompare(b.person.nick, "pt-BR"))
     .map((item, index) => row(item.person, index, viewerId, item.points));
-}
-
-function profit(capital: number) {
-  return Math.round((capital - MARCO_ZERO_COINS) * 100) / 100;
 }
 
 async function loadLeagues(viewerId: string, people: Person[]) {
@@ -93,9 +89,8 @@ async function loadLeagues(viewerId: string, people: Person[]) {
     const history = (events ?? []).filter((event) => event.league_id === league.id);
     const rows = roster.map((member, index) => {
       const person = byId.get(member.user_id);
-      const closed = history.filter((event) => event.user_id === member.user_id && Date.parse(event.at) >= Date.parse(league.created_at)).reduce((sum, event) => sum + Number(event.coins), 0);
-      // A terça guarda o saldo e devolve a banca a 50. Até lá, a liga usa esse mesmo saldo.
-      const points = Math.round((closed + (person?.balance ?? 0)) * 100) / 100;
+      const closed = history.filter((event) => event.user_id === member.user_id && Date.parse(event.at) >= Date.parse(league.created_at)).reduce((sum, event) => sum + profitOf(Number(event.coins)), 0);
+      const points = Math.round((closed + (person ? profitOf(person.balance) : 0)) * 100) / 100;
       return {
         place: index + 1,
         initials: person?.initials ?? "??",

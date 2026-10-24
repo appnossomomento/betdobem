@@ -110,7 +110,7 @@ export function LeagueScreen({ league, member, invite, signedIn, acceptOnLoad }:
             <div className="mt-4 grid grid-cols-[28px_1fr_auto] gap-2.5 px-0.5 pb-1 text-[11px] font-semibold tracking-[0.08em] text-muted uppercase">
               <span>#</span>
               <span>Jogador</span>
-              <span>Patrimônio</span>
+              <span>Lucro</span>
             </div>
             <ol>
               {league.rows.length === 0 ? (

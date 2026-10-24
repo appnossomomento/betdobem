@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Coin } from "./Icons";
+import { monthProfit, profitOf } from "@/lib/economy";
+import { Chevron, Coin } from "./Icons";
 
 type Leg = { phrase: string; odd: number; result: string | null };
 type Bet = { id: string; stake: number; combined_odd: number; potential_return: number; status: string; placed_at: string; bet_legs: Leg[] };
@@ -13,29 +14,38 @@ const kindLabel: Record<string, string> = { marco_zero: "Marco zero", stake: "Ap
 export function CarteiraScreen({ balance, bets, ledger }: { balance: number; bets: Bet[]; ledger: Entry[] }) {
   const open = bets.filter((bet) => bet.status === "open");
   const done = bets.filter((bet) => bet.status !== "open");
+  const weekly = profitOf(balance);
+  const monthly = monthProfit(balance, ledger);
   return (
     <div className="flex flex-col gap-4">
-      <header>
-        <p className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">Carteira</p>
-        <h1 className="mt-1 inline-flex items-center gap-2 text-3xl font-bold tabular-nums"><Coin />{money(balance)}</h1>
-      </header>
+      <div className="grid grid-cols-3 gap-2.5">
+        <Stat label="Carteira" value={balance} />
+        <Stat label="Lucro mensal" value={monthly} />
+        <Stat label="Lucro semanal" value={weekly} glow />
+      </div>
       <Block title="Abertas" empty="Nenhuma aposta">{open.map((bet) => <BetCard key={bet.id} bet={bet} />)}</Block>
-      <Block title="Encerradas" empty="Nenhuma aposta">{done.map((bet) => <BetCard key={bet.id} bet={bet} />)}</Block>
-      <section className="rounded-[18px] border border-line bg-card px-[18px] py-4">
-        <h2 className="text-[15px]">Extrato</h2>
-        <ul>
-          {ledger.length === 0 ? <li className="border-t border-line py-4 text-sm text-muted">Nenhuma aposta</li> : ledger.map((entry) => (
-            <li key={entry.id} className="flex items-center justify-between gap-3 border-t border-line py-3">
-              <span>
-                <b className="block text-sm font-semibold">{kindLabel[entry.kind] ?? entry.kind}</b>
-                <span className="text-xs text-muted">{when(entry.created_at)}</span>
-              </span>
-              <span className={`font-bold tabular-nums ${Number(entry.amount) < 0 ? "text-ink" : "text-accent"}`}>{signed(Number(entry.amount))}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <FoldBlock title="Encerradas" empty="Nenhuma aposta">{done.map((bet) => <BetCard key={bet.id} bet={bet} />)}</FoldBlock>
+      <FoldBlock title="Extrato" empty="Nenhuma aposta">
+        {ledger.map((entry) => (
+          <li key={entry.id} className="flex items-center justify-between gap-3 border-t border-line py-3">
+            <span>
+              <b className="block text-sm font-semibold">{kindLabel[entry.kind] ?? entry.kind}</b>
+              <span className="text-xs text-muted">{when(entry.created_at)}</span>
+            </span>
+            <span className={`font-bold tabular-nums ${Number(entry.amount) < 0 ? "text-ink" : "text-accent"}`}>{signed(Number(entry.amount))}</span>
+          </li>
+        ))}
+      </FoldBlock>
     </div>
+  );
+}
+
+function Stat({ label, value, glow = false }: { label: string; value: number; glow?: boolean }) {
+  return (
+    <article className={`flex min-h-20 min-w-0 flex-col gap-2 rounded-[18px] border bg-card px-3 py-3 min-[880px]:min-h-24 min-[880px]:px-4 ${glow ? "border-[#d6f25c]/80 shadow-[0_0_16px_rgba(214,242,92,0.28)]" : "border-line"}`}>
+      <p className="text-xs font-semibold leading-tight text-muted">{label}</p>
+      <p className="inline-flex items-center gap-1.5 text-2xl font-bold leading-none tabular-nums min-[880px]:text-3xl"><Coin />{money(value)}</p>
+    </article>
   );
 }
 
@@ -44,6 +54,25 @@ function Block({ title, empty, children }: { title: string; empty: string; child
     <section className="rounded-[18px] border border-line bg-card px-[18px] py-4">
       <h2 className="mb-1 text-[15px]">{title}</h2>
       {children.length === 0 ? <p className="border-t border-line py-4 text-sm text-muted">{empty}</p> : <ul>{children}</ul>}
+    </section>
+  );
+}
+
+function FoldBlock({ title, empty, children }: { title: string; empty: string; children: React.ReactNode[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="rounded-[18px] border border-line bg-card px-[18px] py-4">
+      <button type="button" className="flex w-full items-center justify-between" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <h2 className="text-[15px]">{title}</h2>
+        <span className={`chevron text-muted ${open ? "rotate-180" : ""}`}>
+          <Chevron dir="down" />
+        </span>
+      </button>
+      <div className={`fold ${open ? "fold-open" : ""}`}>
+        <div className={`fold-inner ${open ? "mt-1" : ""}`}>
+          {children.length === 0 ? <p className="border-t border-line py-4 text-sm text-muted">{empty}</p> : <ul>{children}</ul>}
+        </div>
+      </div>
     </section>
   );
 }

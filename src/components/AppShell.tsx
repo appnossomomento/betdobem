@@ -138,6 +138,7 @@ function Ticket({ on, onClose }: { on: boolean; onClose: () => void }) {
   const [receipt, setReceipt] = useState<{ stake: number; back: number; left: number; id: string } | null>(null);
   const amount = Number(stake.replace(",", "."));
   const quoted = Number.isFinite(amount) && Math.round(amount * 100) >= 100 ? Math.round(amount * Number(slip.odd) * 100) / 100 : null;
+  const gain = quoted == null ? null : Math.round((quoted - amount) * 100) / 100;
   const ready = signedIn && quoted != null && Math.round(amount * 100) <= Math.round(balance * 100);
   const legs = order.map((id) => picks[id]).filter(Boolean);
 
@@ -233,6 +234,10 @@ function Ticket({ on, onClose }: { on: boolean; onClose: () => void }) {
           <div className="mt-4 flex items-baseline justify-between">
             <span className="text-sm font-semibold text-muted">Retorno</span>
             <span className="text-lg font-bold text-accent tabular-nums">{quoted == null ? "–" : coins(quoted)}</span>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-sm font-semibold text-muted">Lucro</span>
+            <span className="text-lg font-bold text-accent tabular-nums">{gain == null ? "–" : coins(gain)}</span>
           </div>
           {error ? <p className="mt-3 text-sm text-accent" role="status">{error}</p> : null}
           {signedIn ? (
