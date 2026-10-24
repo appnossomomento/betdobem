@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MARCO_ZERO_COINS, monthKey, weekKey } from "@/lib/economy";
+import { MARCO_ZERO_COINS, monthKey, profitOf, weekKey } from "@/lib/economy";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
@@ -12,7 +12,8 @@ export async function GET(request: Request) {
   const now = new Date();
   const { data: already } = await admin.from("weeks").select("week_key").eq("week_key", week).maybeSingle();
   if (already) return NextResponse.json({ ok: true, reset: 0, week, skipped: true });
-  const { data: profiles } = await admin.from("profiles").select("id");
+  const withSaldo = await admin.from("profiles").select("id, saldo_total");
+  const { data: profiles } = withSaldo.error ? await admin.from("profiles").select("id") : withSaldo;
   const { data: ledger } = await admin.from("ledger").select("user_id, amount");
   const balances = new Map<string, number>();
   for (const row of ledger ?? []) balances.set(row.user_id, (balances.get(row.user_id) ?? 0) + Number(row.amount));
@@ -24,6 +25,8 @@ export async function GET(request: Request) {
     const { data: monthRow } = await admin.from("month_capitals").select("capital").eq("user_id", profile.id).eq("month_key", month).maybeSingle();
     const next = Math.round(((monthRow ? Number(monthRow.capital) : 0) + balance) * 100) / 100;
     await admin.from("month_capitals").upsert({ user_id: profile.id, month_key: month, capital: next });
+    const closed = Math.round(((Number("saldo_total" in profile ? profile.saldo_total : 0) || 0) + profitOf(balance)) * 100) / 100;
+    await admin.from("profiles").update({ saldo_total: closed }).eq("id", profile.id);
     if (balance !== 0) await admin.from("ledger").insert({ user_id: profile.id, kind: "reset", amount: -balance, week_key: week });
     await admin.from("ledger").insert({ user_id: profile.id, kind: "marco_zero", amount: MARCO_ZERO_COINS, week_key: week });
     const { data: memberships } = await admin.from("league_members").select("league_id").eq("user_id", profile.id);

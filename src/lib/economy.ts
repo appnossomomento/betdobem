@@ -41,3 +41,8 @@ export function monthProfit(balance: number, entries: { kind: string; amount: nu
   }, 0);
   return Math.round((closed + profitOf(balance)) * 100) / 100;
 }
+
+/** Lucro acumulado: semanas já guardadas em profiles.saldo_total + semana aberta. */
+export function totalSaldo(closed: number, balance: number) {
+  return Math.round((closed + profitOf(balance)) * 100) / 100;
+}

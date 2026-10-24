@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { monthProfit, profitOf } from "@/lib/economy";
+import { monthProfit, profitOf, totalSaldo } from "@/lib/economy";
 import { Chevron, Coin } from "./Icons";
 
 type Leg = { phrase: string; odd: number; result: string | null };
@@ -11,17 +11,19 @@ type Entry = { id: string; kind: string; amount: number; created_at: string };
 const statusLabel: Record<string, string> = { open: "Aberta", won: "Ganha", lost: "Perdida", void: "Anulada" };
 const kindLabel: Record<string, string> = { marco_zero: "Marco zero", stake: "Aposta", payout: "Retorno", reset: "Reset", ajuste: "Ajuste" };
 
-export function CarteiraScreen({ balance, bets, ledger }: { balance: number; bets: Bet[]; ledger: Entry[] }) {
+export function CarteiraScreen({ balance, closedSaldo = 0, bets, ledger }: { balance: number; closedSaldo?: number; bets: Bet[]; ledger: Entry[] }) {
   const open = bets.filter((bet) => bet.status === "open");
   const done = bets.filter((bet) => bet.status !== "open");
   const weekly = profitOf(balance);
   const monthly = monthProfit(balance, ledger);
+  const total = totalSaldo(closedSaldo, balance);
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-3 gap-2.5">
-        <Stat label="Carteira" value={balance} />
-        <Stat label="Lucro mensal" value={monthly} />
+      <div className="grid grid-cols-2 gap-2.5">
         <Stat label="Lucro semanal" value={weekly} glow />
+        <Stat label="Lucro mensal" value={monthly} />
+        <Stat label="Carteira" value={balance} />
+        <Stat label="Lucro total" value={total} />
       </div>
       <Block title="Abertas" empty="Nenhuma aposta">{open.map((bet) => <BetCard key={bet.id} bet={bet} />)}</Block>
       <FoldBlock title="Encerradas" empty="Nenhuma aposta">{done.map((bet) => <BetCard key={bet.id} bet={bet} />)}</FoldBlock>

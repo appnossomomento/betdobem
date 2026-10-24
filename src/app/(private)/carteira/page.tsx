@@ -19,5 +19,5 @@ async function CarteiraRoute() {
   const supabase = await createClient();
   const { data: bets } = await supabase.from("bets").select("id, stake, combined_odd, potential_return, status, placed_at, bet_legs(phrase, odd, result)").eq("user_id", account?.id ?? "").order("placed_at", { ascending: false });
   const { data: ledger } = await supabase.from("ledger").select("id, kind, amount, created_at").eq("user_id", account?.id ?? "").order("created_at", { ascending: false });
-  return <CarteiraScreen balance={account?.balance ?? 0} bets={bets ?? []} ledger={ledger ?? []} />;
+  return <CarteiraScreen balance={account?.balance ?? 0} closedSaldo={account?.saldoTotal ?? 0} bets={bets ?? []} ledger={ledger ?? []} />;
 }

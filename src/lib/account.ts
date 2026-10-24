@@ -13,6 +13,8 @@ export type Account = {
   initials: string;
   displayName: string;
   balance: number;
+  /** Lucro das semanas já fechadas; a UI soma o lucro da semana aberta. */
+  saldoTotal: number;
   vip: boolean;
   admin: boolean;
   banned: boolean;
@@ -37,7 +39,7 @@ export const getAccount = cache(async function getAccount(): Promise<Account | n
     const meta = user.user_metadata ?? {};
     const full = await supabase
       .from("profiles")
-      .select("initials, display_name, vip, shirt_size, avatar_url, nick, age, city, favorite_team, bottom_size, banned_at")
+      .select("initials, display_name, vip, shirt_size, avatar_url, nick, age, city, favorite_team, bottom_size, banned_at, saldo_total")
       .eq("id", user.id)
       .maybeSingle();
     const basic = full.error
@@ -46,6 +48,11 @@ export const getAccount = cache(async function getAccount(): Promise<Account | n
     const profile = basic.data;
     const { data: rows } = await supabase.from("ledger").select("amount").eq("user_id", user.id);
     const balance = (rows ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
+    let saldoTotal = profile && "saldo_total" in profile && profile.saldo_total != null ? Number(profile.saldo_total) : NaN;
+    if (!Number.isFinite(saldoTotal)) {
+      const { data: weeks } = await supabase.from("week_capitals").select("capital").eq("user_id", user.id);
+      saldoTotal = Math.round((weeks ?? []).reduce((sum, row) => sum + (Number(row.capital) - 50), 0) * 100) / 100;
+    }
     try {
       await ensureMarketNotice();
     } catch (error) {
@@ -61,6 +68,7 @@ export const getAccount = cache(async function getAccount(): Promise<Account | n
       initials: text(profile?.initials, meta.initials) || "JB",
       displayName: text(profile?.display_name, meta.nick, meta.display_name) || "Jogador",
       balance,
+      saldoTotal,
       vip: board.vips.includes(user.id),
       admin: isAdminEmail(user.email),
       banned,
