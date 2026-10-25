@@ -1,5 +1,4 @@
 import { weekKey } from "@/lib/economy";
-import { forceFinished } from "@/lib/market";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const slugs = ["bra.1", "conmebol.libertadores", "bra.camp.paulista", "bra.camp.carioca", "bra.camp.mineiro", "bra.camp.gaucho"];
@@ -105,19 +104,20 @@ async function finalScore(fixtureId: string): Promise<Score | "void" | null> {
     });
     if (!response.ok) continue;
     const body = (await response.json()) as {
-      header?: { competitions?: { date?: string; status?: { type?: { completed?: boolean; name?: string; state?: string } }; competitors?: { homeAway?: string; score?: string }[] }[] };
-      commentary?: { text?: string }[];
+      header?: {
+        competitions?: {
+          status?: { type?: { completed?: boolean; name?: string; state?: string }; period?: number };
+          competitors?: { homeAway?: string; score?: string }[];
+        }[];
+      };
     };
     const match = body.header?.competitions?.[0];
     if (!match?.competitors?.length) continue;
     const name = match.status?.type?.name ?? "";
     if (name === "STATUS_POSTPONED" || name === "STATUS_CANCELED" || name === "STATUS_CANCELLED") return "void";
-    const kickoff = match.date ?? "";
-    const espnDone = Boolean(match.status?.type?.completed || name === "STATUS_FULL_TIME");
-    const live = match.status?.type?.state === "in";
-    const narratedDone = (body.commentary ?? []).some((note) => /fim de jogo|full[- ]?time|\bend of (the )?game\b/i.test(note.text ?? ""));
-    const stuckDone = forceFinished(kickoff, live, espnDone);
-    if (!espnDone && !narratedDone && !stuckDone) return null;
+    // Só placar oficial da ESPN (completed / FT). Sem forçar fim.
+    const completed = Boolean(match.status?.type?.completed || name === "STATUS_FULL_TIME");
+    if (!completed) return null;
     const home = Number(match.competitors.find((team) => team.homeAway === "home")?.score ?? "");
     const away = Number(match.competitors.find((team) => team.homeAway === "away")?.score ?? "");
     if (!Number.isFinite(home) || !Number.isFinite(away)) return "void";

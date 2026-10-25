@@ -2,29 +2,38 @@ import { ZONE } from "@/lib/economy";
 
 const leadMs = 60_000;
 
+/** Começa a acompanhar 2 min antes do apito. */
+export const liveLeadMs = 2 * 60_000;
+
 /** Até o apito final (com teto de 8h) o placar continua sendo buscado. */
 const liveWindowMs = 8 * 60 * 60 * 1000;
 
-/**
- * Se a ESPN fica presa em "ao vivo" (chuva, feed travado), após ~2h do kickoff
- * tratamos o placar atual como final para liquidar bilhetes.
- */
-export const stuckLiveMs = 120 * 60 * 1000;
-
-export function forceFinished(kickoff: string, live: boolean, finished: boolean, now = Date.now()) {
-  if (finished || !live) return false;
-  const start = Date.parse(kickoff);
-  if (!Number.isFinite(start)) return false;
-  return now - start >= stuckLiveMs;
-}
-
 export function followLive(kickoff: string, finished: boolean, live: boolean, now = Date.now()) {
   if (finished) return false;
-  if (forceFinished(kickoff, live, finished, now)) return false;
   if (live) return true;
   const start = Date.parse(kickoff);
   if (!Number.isFinite(start)) return false;
-  return start - 2 * 60_000 <= now && now - start < liveWindowMs;
+  return start - liveLeadMs <= now && now - start < liveWindowMs;
+}
+
+/** Já passou do horário de início e a ESPN ainda não marcou fim. */
+export function pastKickoff(kickoff: string, finished: boolean, now = Date.now()) {
+  if (finished) return false;
+  const start = Date.parse(kickoff);
+  if (!Number.isFinite(start)) return false;
+  return now >= start && now - start < liveWindowMs;
+}
+
+/**
+ * Cache gravado antes da janela ao vivo, e agora já estamos nela:
+ * força nova chamada à ESPN no momento do jogo (ou 2 min antes).
+ */
+export function kickoffCacheStale(kickoff: string, finished: boolean, savedAt: number, now = Date.now()) {
+  if (finished) return false;
+  const start = Date.parse(kickoff);
+  if (!Number.isFinite(start)) return false;
+  const armAt = start - liveLeadMs;
+  return savedAt < armAt && now >= armAt && now - start < liveWindowMs;
 }
 
 export function marketOpen(kickoff: string, now = Date.now()) {
