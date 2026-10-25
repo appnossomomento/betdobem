@@ -2,7 +2,8 @@ import { ZONE } from "@/lib/economy";
 
 const leadMs = 60_000;
 
-const liveWindowMs = 3.5 * 60 * 60 * 1000;
+/** Até o apito final (com teto de 8h) o placar continua sendo buscado. */
+const liveWindowMs = 8 * 60 * 60 * 1000;
 
 export function followLive(kickoff: string, finished: boolean, live: boolean, now = Date.now()) {
   if (live) return true;

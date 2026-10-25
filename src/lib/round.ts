@@ -23,7 +23,7 @@ const leagues: { slug: string; champ: Champ; label: string }[] = [
 type Payload = { games: OddGame[]; cards: RoundCard[] };
 type CacheFile = Payload & { savedAt: number; version: number };
 
-const cacheVersion = 5;
+const cacheVersion = 6;
 const liveTtl = 15_000;
 
 export async function getRound(): Promise<Payload> {
@@ -40,15 +40,16 @@ async function loadRound(): Promise<Payload> {
   if (current && now - current.savedAt < maxAge) return deliver(current);
 
   try {
-    const base = current && hot ? current.games : await fetchWeek();
+    const staleLive = current?.games.some((game) => !game.finished && Date.parse(game.kickoff) <= now && !game.live) ?? false;
+    const base = current && hot && !staleLive ? current.games : await fetchWeek();
     const games = await paintLive(base, now);
     games.sort(byKickoff);
     const open = games.filter((game) => !game.finished);
     const cards = (open.length ? open : games).slice(0, 6).map(toCard);
     const payload = { games, cards };
     const stamped = { ...payload, savedAt: Date.now(), version: cacheVersion };
-    await writeCache(stamped);
     await writeRemote(stamped);
+    await writeCache(stamped).catch(() => undefined);
     return deliver(payload);
   } catch (error) {
     console.error(error);
@@ -140,6 +141,7 @@ function retitle(payload: Payload): Payload {
 async function scoreboard(slug: string, day: string): Promise<OddGame[]> {
   const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${day}`, {
     headers: { "user-agent": "betdobem" },
+    cache: "no-store",
   });
   if (!response.ok) return [];
   const body = (await response.json()) as { events?: EspnEvent[] };
@@ -297,6 +299,7 @@ async function loadPlays(slug: string, id: string): Promise<LivePlay[] | null> {
   try {
     const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${id}`, {
       headers: { "user-agent": "betdobem" },
+      cache: "no-store",
     });
     if (!response.ok) return null;
     const body = (await response.json()) as { commentary?: Note[] };
