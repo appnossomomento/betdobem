@@ -5,9 +5,23 @@ const leadMs = 60_000;
 /** Até o apito final (com teto de 8h) o placar continua sendo buscado. */
 const liveWindowMs = 8 * 60 * 60 * 1000;
 
+/**
+ * Se a ESPN fica presa em "ao vivo" (chuva, feed travado), após ~2h do kickoff
+ * tratamos o placar atual como final para liquidar bilhetes.
+ */
+export const stuckLiveMs = 120 * 60 * 1000;
+
+export function forceFinished(kickoff: string, live: boolean, finished: boolean, now = Date.now()) {
+  if (finished || !live) return false;
+  const start = Date.parse(kickoff);
+  if (!Number.isFinite(start)) return false;
+  return now - start >= stuckLiveMs;
+}
+
 export function followLive(kickoff: string, finished: boolean, live: boolean, now = Date.now()) {
-  if (live) return true;
   if (finished) return false;
+  if (forceFinished(kickoff, live, finished, now)) return false;
+  if (live) return true;
   const start = Date.parse(kickoff);
   if (!Number.isFinite(start)) return false;
   return start - 2 * 60_000 <= now && now - start < liveWindowMs;

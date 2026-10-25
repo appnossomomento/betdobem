@@ -2,7 +2,7 @@ import { connection } from "next/server";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Champ, LivePlay, OddGame, RoundCard } from "@/data/home";
-import { followLive } from "@/lib/market";
+import { followLive, forceFinished } from "@/lib/market";
 import { narrate } from "@/lib/narrate";
 import { settleFinished, settleOpenBets } from "@/lib/settle";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,7 +23,7 @@ const leagues: { slug: string; champ: Champ; label: string }[] = [
 type Payload = { games: OddGame[]; cards: RoundCard[] };
 type CacheFile = Payload & { savedAt: number; version: number };
 
-const cacheVersion = 6;
+const cacheVersion = 7;
 const liveTtl = 15_000;
 
 export async function getRound(): Promise<Payload> {
@@ -92,8 +92,13 @@ async function paintLive(games: OddGame[], now: number) {
   const wasLive = new Set(games.filter((game) => game.live).map((game) => game.id));
   const merged = games.map((game) => {
     const row = fresh.get(game.id);
-    if (!row) return game;
-    return { ...game, live: row.live, finished: row.finished, score: row.score, clock: row.clock, when: row.when };
+    const next = row
+      ? { ...game, live: row.live, finished: row.finished, score: row.score, clock: row.clock, when: row.when }
+      : game;
+    if (forceFinished(next.kickoff, next.live, next.finished, now)) {
+      return { ...next, live: false, finished: true, clock: "" };
+    }
+    return next;
   });
   return Promise.all(
     merged.map(async (game) => {
@@ -101,7 +106,10 @@ async function paintLive(games: OddGame[], now: number) {
       const recent = game.finished && Number.isFinite(kick) && now - kick < 18 * 60 * 60 * 1000 && (wasLive.has(game.id) || !game.plays?.length);
       if (!game.live && !recent) return game;
       const plays = await loadPlays(slugFor(game), game.id);
-      return plays?.length ? { ...game, plays } : game;
+      if (!plays?.length) return game;
+      const narratedDone = plays.some((play) => /fim de jogo|full[- ]?time/i.test(play.text));
+      if (narratedDone && !game.finished) return { ...game, plays, live: false, finished: true, clock: "" };
+      return { ...game, plays };
     }),
   );
 }
@@ -164,8 +172,12 @@ function toGame(event: EspnEvent): OddGame | null {
   if (!home || !away) return null;
   const state = match.status?.type?.state;
   const statusName = match.status?.type?.name ?? "";
-  const live = state === "in";
-  const finished = state === "post" && statusName !== "STATUS_POSTPONED" && statusName !== "STATUS_CANCELED" && statusName !== "STATUS_CANCELLED" && statusName !== "STATUS_SUSPENDED";
+  let live = state === "in";
+  let finished = state === "post" && statusName !== "STATUS_POSTPONED" && statusName !== "STATUS_CANCELED" && statusName !== "STATUS_CANCELLED" && statusName !== "STATUS_SUSPENDED";
+  if (forceFinished(event.date, live, finished)) {
+    live = false;
+    finished = true;
+  }
   const price = match.odds?.[0]?.moneyline;
   return {
     id: String(event.id),
