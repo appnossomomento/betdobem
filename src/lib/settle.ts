@@ -98,7 +98,10 @@ function outcome(key: string, score: Score | "void"): Outcome {
 
 async function finalScore(fixtureId: string): Promise<Score | "void" | null> {
   for (const slug of slugs) {
-    const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${fixtureId}`, { headers: { "user-agent": "betdobem" } });
+    const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${fixtureId}`, {
+      headers: { "user-agent": "betdobem" },
+      cache: "no-store",
+    });
     if (!response.ok) continue;
     const body = (await response.json()) as { header?: { competitions?: { status?: { type?: { completed?: boolean; name?: string } }; competitors?: { homeAway?: string; score?: string }[] }[] } };
     const match = body.header?.competitions?.[0];

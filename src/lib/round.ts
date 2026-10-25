@@ -4,7 +4,7 @@ import path from "node:path";
 import type { Champ, LivePlay, OddGame, RoundCard } from "@/data/home";
 import { followLive } from "@/lib/market";
 import { narrate } from "@/lib/narrate";
-import { settleFinished } from "@/lib/settle";
+import { settleFinished, settleOpenBets } from "@/lib/settle";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const zone = "America/Sao_Paulo";
@@ -128,6 +128,14 @@ async function deliver(payload: Payload): Promise<Payload> {
     await settleFinished(payload.games);
   } catch (error) {
     console.error(error);
+  }
+  // Se o cache atrasar o placar, a ESPN no settleOpenBets ainda fecha o que já acabou.
+  if (payload.games.some((game) => game.finished || game.live)) {
+    try {
+      await settleOpenBets();
+    } catch (error) {
+      console.error(error);
+    }
   }
   return retitle(payload);
 }
