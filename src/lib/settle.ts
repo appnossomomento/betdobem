@@ -8,20 +8,19 @@ type Outcome = "won" | "lost" | "void";
 type Leg = { id: string; fixture_id: string; selection_key: string; odd: number };
 type OpenBet = { id: string; user_id: string; stake: number; bet_legs: Leg[] };
 
+/**
+ * Nunca liquida pelo cache sozinho. Só o FT oficial da ESPN conta.
+ * `games` só indica quais fixtures olhar; o placar vem sempre de finalScore.
+ */
 export async function settleFinished(games: { id: string; finished: boolean; score: string }[]) {
-  const scores = new Map<string, Score>();
-  for (const game of games) {
-    if (!game.finished) continue;
-    const score = parseScore(game.score);
-    if (score) scores.set(game.id, score);
-  }
-  if (scores.size === 0) return 0;
-  const admin = createAdminClient();
-  const { data: touched } = await admin.from("bet_legs").select("bet_id").in("fixture_id", [...scores.keys()]);
-  const ids = [...new Set((touched ?? []).map((leg) => leg.bet_id))];
+  const ids = games.filter((game) => game.finished).map((game) => game.id);
   if (ids.length === 0) return 0;
-  const { data: bets } = await admin.from("bets").select("id, user_id, stake, bet_legs(id, fixture_id, selection_key, odd)").in("id", ids).eq("status", "open");
-  return closeBets((bets ?? []) as OpenBet[], async (fixtureId) => scores.get(fixtureId) ?? null);
+  const admin = createAdminClient();
+  const { data: touched } = await admin.from("bet_legs").select("bet_id").in("fixture_id", ids);
+  const betIds = [...new Set((touched ?? []).map((leg) => leg.bet_id))];
+  if (betIds.length === 0) return 0;
+  const { data: bets } = await admin.from("bets").select("id, user_id, stake, bet_legs(id, fixture_id, selection_key, odd)").in("id", betIds).eq("status", "open");
+  return closeBets((bets ?? []) as OpenBet[], finalScore);
 }
 
 export async function settleOpenBets() {
@@ -82,12 +81,6 @@ async function finishBet(bet: OpenBet, status: "lost" | "void" | "won", amount: 
   return Boolean(claimed?.length);
 }
 
-function parseScore(score: string): Score | null {
-  const match = /^(\d+)\s*[–-]\s*(\d+)$/.exec(score.trim());
-  if (!match) return null;
-  return { home: Number(match[1]), away: Number(match[2]) };
-}
-
 function outcome(key: string, score: Score | "void"): Outcome {
   if (score === "void") return "void";
   const line = /^P:(\d{1,2})-(\d{1,2})$/.exec(key);
@@ -96,6 +89,7 @@ function outcome(key: string, score: Score | "void"): Outcome {
   return key === winner ? "won" : "lost";
 }
 
+/** Placar final só com completed/FT oficial da ESPN. Em jogo (ex.: 89') devolve null. */
 async function finalScore(fixtureId: string): Promise<Score | "void" | null> {
   for (const slug of slugs) {
     const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${fixtureId}`, {
@@ -106,7 +100,7 @@ async function finalScore(fixtureId: string): Promise<Score | "void" | null> {
     const body = (await response.json()) as {
       header?: {
         competitions?: {
-          status?: { type?: { completed?: boolean; name?: string; state?: string }; period?: number };
+          status?: { type?: { completed?: boolean; name?: string; state?: string } };
           competitors?: { homeAway?: string; score?: string }[];
         }[];
       };
@@ -114,8 +108,9 @@ async function finalScore(fixtureId: string): Promise<Score | "void" | null> {
     const match = body.header?.competitions?.[0];
     if (!match?.competitors?.length) continue;
     const name = match.status?.type?.name ?? "";
+    const state = match.status?.type?.state ?? "";
     if (name === "STATUS_POSTPONED" || name === "STATUS_CANCELED" || name === "STATUS_CANCELLED") return "void";
-    // Só placar oficial da ESPN (completed / FT). Sem forçar fim.
+    if (state === "in" || name === "STATUS_HALFTIME" || name === "STATUS_FIRST_HALF" || name === "STATUS_SECOND_HALF") return null;
     const completed = Boolean(match.status?.type?.completed || name === "STATUS_FULL_TIME");
     if (!completed) return null;
     const home = Number(match.competitors.find((team) => team.homeAway === "home")?.score ?? "");
