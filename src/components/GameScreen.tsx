@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { liveLabel, oddFor, phraseFor, type OddGame, type Side } from "@/data/home";
+import { liveLabel, oddFor, oddSideLabel, phraseFor, type OddGame, type Side } from "@/data/home";
 import { kickoffDay, marketOpen, marketOpenLabel } from "@/lib/market";
 import { useBet } from "./BetContext";
 import { LivePulse } from "./LivePulse";
@@ -71,17 +71,17 @@ function GameBet({ game }: { game: OddGame }) {
       ) : day === "future" ? (
         <div className="mt-5">
           <div className="grid grid-cols-3 gap-2">
-            {game.one != null ? <QuietOdd side="1" value={game.one} /> : null}
-            {game.draw != null ? <QuietOdd side="X" value={game.draw} /> : null}
-            {game.two != null ? <QuietOdd side="2" value={game.two} /> : null}
+            {game.one != null ? <QuietOdd label={oddSideLabel(game, "1")} value={game.one} /> : null}
+            {game.draw != null ? <QuietOdd label={oddSideLabel(game, "X")} value={game.draw} /> : null}
+            {game.two != null ? <QuietOdd label={oddSideLabel(game, "2")} value={game.two} /> : null}
           </div>
           <p className="mt-3 text-center text-sm font-semibold text-[#a56b6e]">{marketOpenLabel(game.kickoff)}</p>
         </div>
       ) : open ? (
         <div className="mt-5 grid grid-cols-3 gap-2">
-          {game.one != null ? <OddButton side="1" value={game.one} selected={selected === "1"} onChoose={() => chooseSide("1")} /> : null}
-          {game.draw != null ? <OddButton side="X" value={game.draw} selected={selected === "X"} onChoose={() => chooseSide("X")} /> : null}
-          {game.two != null ? <OddButton side="2" value={game.two} selected={selected === "2"} onChoose={() => chooseSide("2")} /> : null}
+          {game.one != null ? <OddButton label={oddSideLabel(game, "1")} value={game.one} selected={selected === "1"} onChoose={() => chooseSide("1")} /> : null}
+          {game.draw != null ? <OddButton label={oddSideLabel(game, "X")} value={game.draw} selected={selected === "X"} onChoose={() => chooseSide("X")} /> : null}
+          {game.two != null ? <OddButton label={oddSideLabel(game, "2")} value={game.two} selected={selected === "2"} onChoose={() => chooseSide("2")} /> : null}
         </div>
       ) : (
         <p className="mt-5 text-sm font-semibold text-muted">Mercado fechado</p>
@@ -91,19 +91,19 @@ function GameBet({ game }: { game: OddGame }) {
   );
 }
 
-function QuietOdd({ side, value }: { side: Side; value: number }) {
+function QuietOdd({ label, value }: { label: string; value: number }) {
   return (
     <span className="rounded-lg bg-card-2 px-1 py-2 text-center text-sm font-bold text-accent tabular-nums">
-      <small className="mb-0.5 block text-[10px] font-semibold text-muted">{side}</small>
+      <small className="mb-0.5 block text-[10px] font-semibold text-muted">{label}</small>
       {value.toFixed(2)}
     </span>
   );
 }
 
-function OddButton({ side, value, selected, onChoose }: { side: Side; value: number; selected: boolean; onChoose: () => void }) {
+function OddButton({ label, value, selected, onChoose }: { label: string; value: number; selected: boolean; onChoose: () => void }) {
   return (
     <button type="button" aria-pressed={selected} onClick={onChoose} className={`rounded-lg px-1 py-2 text-sm font-bold tabular-nums ${selected ? "bg-accent text-accent-ink" : "bg-card-2 text-accent"}`}>
-      <small className={`mb-0.5 block text-[10px] font-semibold ${selected ? "text-accent-ink" : "text-muted"}`}>{side}</small>
+      <small className={`mb-0.5 block text-[10px] font-semibold ${selected ? "text-accent-ink" : "text-muted"}`}>{label}</small>
       {value.toFixed(2)}
     </button>
   );

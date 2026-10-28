@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { champs, liveLabel, oddFor, phraseFor, type ChampFilter, type OddGame, type Side } from "@/data/home";
+import { champs, liveLabel, oddFor, oddSideLabel, phraseFor, type ChampFilter, type OddGame, type Side } from "@/data/home";
+import { ZONE } from "@/lib/economy";
 import { kickoffDay, marketOpen, marketOpenLabel } from "@/lib/market";
 import { useBet } from "./BetContext";
 import { LivePulse } from "./LivePulse";
@@ -16,8 +17,6 @@ const chipLabel: Record<ChampFilter, string> = {
   libertadores: "Libertadores",
 };
 
-const groupOrder = ["Ao vivo", "Hoje", "Sábado", "Domingo"];
-
 export function GamesScreen({ games }: { games: OddGame[] }) {
   const { picks, choose } = useBet();
   const now = useMarketNow();
@@ -29,12 +28,17 @@ export function GamesScreen({ games }: { games: OddGame[] }) {
     const buckets = new Map<string, OddGame[]>();
     for (const game of visible) {
       if (game.finished) continue;
-      const key = game.live ? "Ao vivo" : dayOf(game.when);
+      const key = game.live ? "Ao vivo" : weekdayTitle(game.kickoff);
       buckets.set(key, [...(buckets.get(key) ?? []), game]);
     }
-    for (const list of buckets.values()) list.sort((a, b) => minutes(a.when) - minutes(b.when));
-    const rest = [...buckets.keys()].filter((key) => !groupOrder.includes(key));
-    return [...groupOrder, ...rest].filter((key) => buckets.has(key)).map((key) => ({ key, games: buckets.get(key)! }));
+    for (const list of buckets.values()) list.sort((a, b) => a.kickoff.localeCompare(b.kickoff));
+    return [...buckets.entries()]
+      .map(([key, list]) => ({ key, games: list, first: list[0]?.kickoff ?? "" }))
+      .sort((a, b) => {
+        if (a.key === "Ao vivo") return -1;
+        if (b.key === "Ao vivo") return 1;
+        return a.first.localeCompare(b.first);
+      });
   }, [visible]);
   const finished = useMemo(
     () => visible.filter((game) => game.finished).sort((a, b) => a.kickoff.localeCompare(b.kickoff)),
@@ -112,6 +116,7 @@ function MatchCard({ game, now, selected, onChoose }: { game: OddGame; now: numb
   const score = game.score !== "–" ? game.score : null;
   const day = kickoffDay(game.kickoff, now);
   const open = day === "today" && marketOpen(game.kickoff, now);
+  const when = weekdayWhen(game.kickoff);
 
   return (
     <article className={`min-w-0 rounded-[18px] border bg-card p-2.5 min-[880px]:p-4 ${live ? "border-[#d6f25c]/80 shadow-[0_0_16px_rgba(214,242,92,0.28)]" : "border-line shadow-[0_10px_28px_rgba(0,0,0,0.28)]"}`}>
@@ -119,7 +124,7 @@ function MatchCard({ game, now, selected, onChoose }: { game: OddGame; now: numb
         <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:text-xs">{game.competition}</span>
         <span className="flex shrink-0 flex-col items-end gap-1">
           {live ? <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-ink min-[880px]:px-2 min-[880px]:py-1 min-[880px]:text-xs">{liveLabel(game.clock)}</span> : null}
-          <span className="text-[10px] text-muted tabular-nums min-[880px]:text-xs">{game.when}</span>
+          <span className="text-[10px] text-muted tabular-nums min-[880px]:text-xs">{when}</span>
         </span>
       </div>
       <div className="mt-2 flex items-center justify-between gap-2 min-[880px]:mt-3">
@@ -132,16 +137,16 @@ function MatchCard({ game, now, selected, onChoose }: { game: OddGame; now: numb
       {open && game.one != null ? <p className="mt-2 text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:mt-3 min-[880px]:text-[11px]">Resultado final</p> : null}
       {day === "future" ? (
         <div className="mt-1.5 grid grid-cols-3 gap-1 min-[880px]:gap-1.5">
-          {game.one != null ? <QuietOdd side="1" value={game.one} /> : null}
-          {game.draw != null ? <QuietOdd side="X" value={game.draw} /> : null}
-          {game.two != null ? <QuietOdd side="2" value={game.two} /> : null}
+          {game.one != null ? <QuietOdd label={oddSideLabel(game, "1")} value={game.one} /> : null}
+          {game.draw != null ? <QuietOdd label={oddSideLabel(game, "X")} value={game.draw} /> : null}
+          {game.two != null ? <QuietOdd label={oddSideLabel(game, "2")} value={game.two} /> : null}
           <p className="col-span-3 px-1 pt-1 text-center text-[10px] font-semibold leading-snug whitespace-nowrap text-[#a56b6e] min-[880px]:text-[11px]">{marketOpenLabel(game.kickoff)}</p>
         </div>
       ) : open ? (
         <div className="mt-1.5 grid grid-cols-3 gap-1 min-[880px]:gap-1.5">
-          {game.one != null ? <Odd side="1" value={game.one} on={selected === "1"} onChoose={() => onChoose("1")} /> : null}
-          {game.draw != null ? <Odd side="X" value={game.draw} on={selected === "X"} onChoose={() => onChoose("X")} /> : null}
-          {game.two != null ? <Odd side="2" value={game.two} on={selected === "2"} onChoose={() => onChoose("2")} /> : null}
+          {game.one != null ? <Odd label={oddSideLabel(game, "1")} value={game.one} on={selected === "1"} onChoose={() => onChoose("1")} /> : null}
+          {game.draw != null ? <Odd label={oddSideLabel(game, "X")} value={game.draw} on={selected === "X"} onChoose={() => onChoose("X")} /> : null}
+          {game.two != null ? <Odd label={oddSideLabel(game, "2")} value={game.two} on={selected === "2"} onChoose={() => onChoose("2")} /> : null}
           <PlacarToggle game={game} />
         </div>
       ) : live ? (
@@ -161,7 +166,7 @@ function FinishedCard({ game }: { game: OddGame }) {
     <Link href={`/jogo/${game.id}`} className="min-w-0 rounded-[18px] border border-line/60 bg-card/40 p-2.5 min-[880px]:p-4">
       <div className="flex items-start justify-between gap-1.5">
         <span className="min-w-0 truncate text-[10px] font-semibold tracking-[0.08em] text-muted uppercase min-[880px]:text-xs">{game.competition}</span>
-        <span className="text-[10px] text-muted tabular-nums min-[880px]:text-xs">{game.when}</span>
+        <span className="text-[10px] text-muted tabular-nums min-[880px]:text-xs">{weekdayWhen(game.kickoff)}</span>
       </div>
       <div className="mt-2 flex items-center justify-between gap-2 min-[880px]:mt-3">
         <div className="min-w-0 flex-1">
@@ -183,32 +188,37 @@ function SideTeam({ name, logo, muted }: { name: string; logo: string; muted?: b
   );
 }
 
-function QuietOdd({ side, value }: { side: Side; value: number }) {
+function QuietOdd({ label, value }: { label: string; value: number }) {
   return (
     <span className="rounded-lg bg-card-2 px-0.5 py-1.5 text-center text-sm font-bold text-accent tabular-nums min-[880px]:px-1 min-[880px]:py-2">
-      <small className="mb-0.5 block text-[10px] font-semibold text-muted">{side}</small>
+      <small className="mb-0.5 block text-[10px] font-semibold text-muted">{label}</small>
       {value.toFixed(2)}
     </span>
   );
 }
 
-function Odd({ side, value, on, onChoose }: { side: Side; value: number; on: boolean; onChoose: () => void }) {
+function Odd({ label, value, on, onChoose }: { label: string; value: number; on: boolean; onChoose: () => void }) {
   return (
     <button type="button" aria-pressed={on} onClick={onChoose} className={`rounded-lg px-0.5 py-1.5 text-sm font-bold tabular-nums min-[880px]:px-1 min-[880px]:py-2 ${on ? "bg-accent text-accent-ink" : "bg-card-2 text-accent"}`}>
-      <small className={`mb-0.5 block text-[10px] font-semibold ${on ? "text-accent-ink" : "text-muted"}`}>{side}</small>
+      <small className={`mb-0.5 block text-[10px] font-semibold ${on ? "text-accent-ink" : "text-muted"}`}>{label}</small>
       {value.toFixed(2)}
     </button>
   );
 }
 
-function dayOf(when: string) {
-  const [day] = when.split(" ");
-  if (!day || day === "hoje") return "Hoje";
-  return day.charAt(0).toUpperCase() + day.slice(1);
+/** Título da seção: Quarta, Quinta… (nunca "hoje"). */
+function weekdayTitle(kickoff: string) {
+  const name = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: ZONE }).format(new Date(kickoff));
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-function minutes(when: string) {
-  const match = when.match(/(\d{1,2})h(\d{2})?/);
-  if (!match) return 0;
-  return Number(match[1]) * 60 + Number(match[2] ?? 0);
+/** Label do card: "quarta 21h" a partir do kickoff. */
+function weekdayWhen(kickoff: string) {
+  const kick = new Date(kickoff);
+  const day = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: ZONE }).format(kick).toLowerCase();
+  const parts = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: ZONE }).formatToParts(kick);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
+  const clock = minute === "00" ? `${hour}h` : `${hour}h${minute}`;
+  return `${day} ${clock}`;
 }

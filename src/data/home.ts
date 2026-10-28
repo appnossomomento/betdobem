@@ -39,6 +39,10 @@ export type OddGame = {
   away: string;
   homeLogo: string;
   awayLogo: string;
+  /** Sigla ESPN do mandante (rótulo da odd 1). */
+  homeAbbr: string;
+  /** Sigla ESPN do visitante (rótulo da odd 2). */
+  awayAbbr: string;
   one: number | null;
   draw: number | null;
   two: number | null;
@@ -135,6 +139,19 @@ export function oddFor(game: OddGame, side: Side) {
   if (side === "1") return game.one;
   if (side === "2") return game.two;
   return game.draw;
+}
+
+/** Rótulo da odd: sigla do mandante, E no empate, sigla do visitante. Chave interna continua 1|X|2. */
+export function oddSideLabel(game: Pick<OddGame, "home" | "away"> & { homeAbbr?: string; awayAbbr?: string }, side: Side) {
+  if (side === "1") return game.homeAbbr || abbreviateName(game.home);
+  if (side === "2") return game.awayAbbr || abbreviateName(game.away);
+  return "E";
+}
+
+export function abbreviateName(name: string) {
+  const cleaned = name.replace(/[^A-Za-zÀ-ÿ]/g, "").trim();
+  if (cleaned.length <= 3) return cleaned.toUpperCase() || "—";
+  return cleaned.slice(0, 3).toUpperCase();
 }
 
 export function placarOdd(homeGoals: number, awayGoals: number) {

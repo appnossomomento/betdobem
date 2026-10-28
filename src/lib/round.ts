@@ -23,7 +23,7 @@ const leagues: { slug: string; champ: Champ; label: string }[] = [
 type Payload = { games: OddGame[]; cards: RoundCard[] };
 type CacheFile = Payload & { savedAt: number; version: number };
 
-const cacheVersion = 8;
+const cacheVersion = 9;
 /** Durante o jogo o placar/minuto a minuto renova a cada ~12s. */
 const liveTtl = 12_000;
 
@@ -102,7 +102,16 @@ async function paintLive(games: OddGame[], now: number) {
   const merged = games.map((game) => {
     const row = fresh.get(game.id);
     if (!row) return game;
-    return { ...game, live: row.live, finished: row.finished, score: row.score, clock: row.clock, when: row.when };
+    return {
+      ...game,
+      live: row.live,
+      finished: row.finished,
+      score: row.score,
+      clock: row.clock,
+      when: row.when,
+      homeAbbr: row.homeAbbr || game.homeAbbr,
+      awayAbbr: row.awayAbbr || game.awayAbbr,
+    };
   });
   return Promise.all(
     merged.map(async (game) => {
@@ -187,6 +196,8 @@ function toGame(event: EspnEvent): OddGame | null {
     away: away.team.displayName,
     homeLogo: home.team.logo,
     awayLogo: away.team.logo,
+    homeAbbr: teamAbbr(home.team),
+    awayAbbr: teamAbbr(away.team),
     one: decimal(price?.home?.close?.odds),
     draw: decimal(price?.draw?.close?.odds),
     two: decimal(price?.away?.close?.odds),
@@ -197,6 +208,14 @@ function toGame(event: EspnEvent): OddGame | null {
     kickoff: event.date,
     scores: [],
   };
+}
+
+function teamAbbr(team: { abbreviation?: string; displayName: string }) {
+  const raw = (team.abbreviation || "").trim().toUpperCase();
+  if (raw.length >= 2) return raw.slice(0, 3);
+  const cleaned = team.displayName.replace(/[^A-Za-zÀ-ÿ]/g, "").trim();
+  if (cleaned.length <= 3) return cleaned.toUpperCase() || "—";
+  return cleaned.slice(0, 3).toUpperCase();
 }
 
 function clockOf(status?: { displayClock?: string; type?: { name?: string; shortDetail?: string } }) {
@@ -341,7 +360,7 @@ type EspnEvent = {
   id: string;
   date: string;
   competitions?: {
-    competitors?: { homeAway: string; score?: string; team: { displayName: string; logo: string } }[];
+    competitors?: { homeAway: string; score?: string; team: { displayName: string; logo: string; abbreviation?: string } }[];
     status?: { displayClock?: string; type?: { state?: string; name?: string; shortDetail?: string } };
     odds?: { moneyline?: { home?: { close?: { odds?: string } }; draw?: { close?: { odds?: string } }; away?: { close?: { odds?: string } } } }[];
   }[];

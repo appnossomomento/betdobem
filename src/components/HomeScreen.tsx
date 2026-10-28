@@ -6,11 +6,11 @@ import {
   champs,
   leagueMarks,
   liveLabel,
+  oddSideLabel,
   type League,
   type OddGame,
   type RankRow,
   type RoundCard,
-  type Side,
 } from "@/data/home";
 import { LivePulse } from "./LivePulse";
 import { RankAvatar } from "./RankAvatar";
@@ -121,9 +121,9 @@ export function HomeScreen({ games, cards, weeklyRows, monthlyRows, leagueRows, 
                     </Link>
                   ) : marketOpen(game.kickoff, now) ? (
                     <div className="grid grid-cols-[52px_52px_52px] gap-1.5">
-                      {game.one != null ? <OddLink side="1" value={game.one} /> : null}
-                      {game.draw != null ? <OddLink side="X" value={game.draw} /> : null}
-                      {game.two != null ? <OddLink side="2" value={game.two} /> : null}
+                      {game.one != null ? <OddLink label={oddSideLabel(game, "1")} value={game.one} /> : null}
+                      {game.draw != null ? <OddLink label={oddSideLabel(game, "X")} value={game.draw} /> : null}
+                      {game.two != null ? <OddLink label={oddSideLabel(game, "2")} value={game.two} /> : null}
                     </div>
                   ) : (
                     <p className="text-xs font-semibold text-muted">Mercado fechado</p>
@@ -330,10 +330,10 @@ function CrestName({ name, logo }: { name: string; logo: string }) {
   );
 }
 
-function OddLink({ side, value }: { side: Side; value: number }) {
+function OddLink({ label, value }: { label: string; value: number }) {
   return (
     <Link href="/jogos" className="w-[52px] rounded-lg bg-card-2 px-1 py-2 text-center text-sm font-bold text-accent tabular-nums">
-      <small className="mb-0.5 block text-[10px] font-semibold text-muted">{side}</small>
+      <small className="mb-0.5 block text-[10px] font-semibold text-muted">{label}</small>
       {value.toFixed(2)}
     </Link>
   );
